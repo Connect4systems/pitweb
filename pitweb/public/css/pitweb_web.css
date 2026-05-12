@@ -101,7 +101,6 @@ body[dir="rtl"] .text-right {
 .pit-language-trigger {
   display: inline-flex;
   align-items: center;
-  display: flex;
   gap: 0.45rem;
   border: 1px solid var(--pit-border);
   border-radius: 999px;

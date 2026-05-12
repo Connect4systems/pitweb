@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  var pitThemeSettings = null;
+
   function onReady(fn) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", fn);
@@ -42,6 +44,48 @@
     return false;
   }
 
+  function t(en, ar) {
+    return isArabic() ? ar : en;
+  }
+
+  function appendStylesheet(href) {
+    if (!href || document.querySelector('link[data-pit-font="' + href + '"]')) {
+      return;
+    }
+
+    var link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.setAttribute("data-pit-font", href);
+    document.head.appendChild(link);
+  }
+
+  async function applyThemeSettings() {
+    var theme = await callApi("pitweb.api.get_webshop_theme_settings");
+    if (!theme) {
+      return;
+    }
+
+    pitThemeSettings = theme;
+
+    if (theme.base_font_url) {
+      appendStylesheet(theme.base_font_url);
+    }
+
+    if (theme.arabic_font_url) {
+      appendStylesheet(theme.arabic_font_url);
+    }
+
+    var style = document.documentElement.style;
+    style.setProperty("--pit-red", theme.primary_color || "#d71920");
+    style.setProperty("--pit-text", theme.dark_text_color || "#1f1f1f");
+    style.setProperty("--pit-light", theme.light_background_color || "#f7f7f7");
+    style.setProperty("--pit-white", theme.card_background_color || "#ffffff");
+    style.setProperty("--pit-border", theme.border_color || "#e5e5e5");
+    style.setProperty("--pit-font-family", theme.base_font_family || "Poppins, sans-serif");
+    style.setProperty("--pit-ar-font-family", theme.arabic_font_family || "Cairo, sans-serif");
+  }
+
   function setDirection() {
     if (isArabic()) {
       document.body.setAttribute("dir", "rtl");
@@ -62,6 +106,26 @@
     if (className) {
       link.className = className;
     }
+    return link;
+  }
+
+  function createSocialLink(href, label, icon) {
+    var link = createLink(href, label, "pit-social-link");
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.setAttribute("aria-label", label);
+
+    var iconSpan = document.createElement("span");
+    iconSpan.className = "pit-social-icon";
+    iconSpan.textContent = icon;
+
+    var textSpan = document.createElement("span");
+    textSpan.className = "pit-social-text";
+    textSpan.textContent = label;
+
+    link.textContent = "";
+    link.appendChild(iconSpan);
+    link.appendChild(textSpan);
     return link;
   }
 
@@ -89,16 +153,19 @@
 
     var social = document.createElement("div");
     social.className = "pit-social";
-    social.appendChild(createLink("https://facebook.com", "Facebook"));
-    social.appendChild(createLink("https://youtube.com", "YouTube"));
-    social.appendChild(createLink("https://tiktok.com", "TikTok"));
+    var fb = (pitThemeSettings && pitThemeSettings.facebook_url) || "https://facebook.com";
+    var yt = (pitThemeSettings && pitThemeSettings.youtube_url) || "https://youtube.com";
+    var tt = (pitThemeSettings && pitThemeSettings.tiktok_url) || "https://tiktok.com";
+    social.appendChild(createSocialLink(fb, t("Facebook", "فيسبوك"), "f"));
+    social.appendChild(createSocialLink(yt, t("YouTube", "يوتيوب"), "▶"));
+    social.appendChild(createSocialLink(tt, t("TikTok", "تيك توك"), "♪"));
 
     var language = document.createElement("div");
     language.className = "pit-language-switch";
 
     var isAr = isArabic();
-    var english = createLink(updateLanguageHref("en"), "EN", isAr ? "" : "is-active");
-    var arabic = createLink(updateLanguageHref("ar"), "AR", isAr ? "is-active" : "");
+    var english = createLink(updateLanguageHref("en"), t("EN", "الانجليزية"), isAr ? "" : "is-active");
+    var arabic = createLink(updateLanguageHref("ar"), t("AR", "العربية"), isAr ? "is-active" : "");
 
     language.appendChild(english);
     language.appendChild(arabic);
@@ -173,12 +240,12 @@
 
     var sidebar = document.createElement("aside");
     sidebar.className = "pit-category-sidebar";
-    sidebar.innerHTML = "<h5>Categories</h5>";
+    sidebar.innerHTML = "<h5>" + t("Categories", "الفئات") + "</h5>";
 
     var toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "pit-sidebar-toggle";
-    toggle.textContent = isArabic() ? "الفئات" : "Categories";
+    toggle.textContent = t("Categories", "الفئات");
     toggle.addEventListener("click", function () {
       sidebar.classList.toggle("is-open");
     });
@@ -340,6 +407,7 @@
   }
 
   async function initializeWebshopUX() {
+    await applyThemeSettings();
     setDirection();
     renderTopBar();
 

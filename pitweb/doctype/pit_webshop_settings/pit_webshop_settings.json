@@ -1,0 +1,152 @@
+{
+ "actions": [],
+ "allow_copy": 0,
+ "allow_import": 0,
+ "allow_rename": 0,
+ "autoname": "prompt",
+ "creation": "2026-05-12 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "colors_section",
+  "primary_color",
+  "dark_text_color",
+  "light_background_color",
+  "card_background_color",
+  "border_color",
+  "fonts_section",
+  "base_font_family",
+  "arabic_font_family",
+  "base_font_url",
+    "arabic_font_url",
+    "social_section",
+    "facebook_url",
+    "youtube_url",
+    "tiktok_url"
+ ],
+ "fields": [
+  {
+   "fieldname": "colors_section",
+   "fieldtype": "Section Break",
+   "label": "Theme Colors"
+  },
+  {
+   "default": "#d71920",
+   "fieldname": "primary_color",
+   "fieldtype": "Color",
+   "label": "Primary Color",
+   "reqd": 1
+  },
+  {
+   "default": "#1f1f1f",
+   "fieldname": "dark_text_color",
+   "fieldtype": "Color",
+   "label": "Dark Text Color",
+   "reqd": 1
+  },
+  {
+   "default": "#f7f7f7",
+   "fieldname": "light_background_color",
+   "fieldtype": "Color",
+   "label": "Light Background Color",
+   "reqd": 1
+  },
+  {
+   "default": "#ffffff",
+   "fieldname": "card_background_color",
+   "fieldtype": "Color",
+   "label": "Card Background Color",
+   "reqd": 1
+  },
+  {
+   "default": "#e5e5e5",
+   "fieldname": "border_color",
+   "fieldtype": "Color",
+   "label": "Border Color",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fonts_section",
+   "fieldtype": "Section Break",
+   "label": "Fonts"
+  },
+  {
+   "default": "Poppins, sans-serif",
+   "fieldname": "base_font_family",
+   "fieldtype": "Data",
+   "label": "Base Font Family",
+   "reqd": 1
+  },
+  {
+   "default": "Cairo, sans-serif",
+   "fieldname": "arabic_font_family",
+   "fieldtype": "Data",
+   "label": "Arabic Font Family",
+   "reqd": 1
+  },
+  {
+   "description": "Optional. Example: https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap",
+   "fieldname": "base_font_url",
+   "fieldtype": "Data",
+   "label": "Base Font URL"
+  },
+  {
+   "description": "Optional. Example: https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap",
+   "fieldname": "arabic_font_url",
+   "fieldtype": "Data",
+   "label": "Arabic Font URL"
+    },
+    {
+     "fieldname": "social_section",
+     "fieldtype": "Section Break",
+     "label": "Social Links"
+    },
+    {
+     "default": "https://facebook.com",
+     "fieldname": "facebook_url",
+     "fieldtype": "Data",
+     "label": "Facebook URL"
+    },
+    {
+     "default": "https://youtube.com",
+     "fieldname": "youtube_url",
+     "fieldtype": "Data",
+     "label": "YouTube URL"
+    },
+    {
+     "default": "https://tiktok.com",
+     "fieldname": "tiktok_url",
+     "fieldtype": "Data",
+     "label": "TikTok URL"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "issingle": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-05-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pitweb",
+ "name": "PIT Webshop Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 0,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

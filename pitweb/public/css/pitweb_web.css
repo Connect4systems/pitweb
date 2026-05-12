@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap");
-
 :root {
   --pit-red: #d71920;
   --pit-text: #1f1f1f;
@@ -7,15 +5,18 @@
   --pit-white: #ffffff;
   --pit-border: #e5e5e5;
   --pit-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --pit-font-family: Poppins, sans-serif;
+  --pit-ar-font-family: Cairo, sans-serif;
 }
 
 body {
+  font-family: var(--pit-font-family);
   color: var(--pit-text);
   background: radial-gradient(circle at top left, #ffffff 0%, var(--pit-light) 55%);
 }
 
 body[dir="rtl"] {
-  font-family: "Cairo", sans-serif;
+  font-family: var(--pit-ar-font-family);
 }
 
 body[dir="rtl"] .text-left {
@@ -44,6 +45,31 @@ body[dir="rtl"] .text-right {
 .pit-topbar .pit-social {
   display: flex;
   gap: 0.75rem;
+}
+
+.pit-social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--pit-border);
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.pit-social-link .pit-social-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pit-social-link .pit-social-text {
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .pit-topbar a {
@@ -256,5 +282,9 @@ body[dir="rtl"] .text-right {
 
   .pit-topbar {
     flex-wrap: wrap;
+  }
+
+  .pit-social-link .pit-social-text {
+    display: none;
   }
 }

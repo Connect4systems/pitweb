@@ -302,6 +302,17 @@
     return route;
   }
 
+  function buildProductsUrl(groupName, slug) {
+    var url = new URL(window.location.origin + "/all-products");
+    if (groupName) {
+      url.searchParams.set("item_group", groupName);
+    }
+    if (slug) {
+      url.searchParams.set("pit_group_slug", slug);
+    }
+    return url.toString();
+  }
+
   function applyGridClass() {
     var gridRoots = document.querySelectorAll(".products-section, .product-listing, .item-list");
     gridRoots.forEach(function (root) {
@@ -317,14 +328,38 @@
   function getCurrentCategorySlug() {
     var path = normalizePath(window.location.pathname);
     if (path.indexOf("/products/") !== 0) {
-      return null;
+      var urlSlug = new URL(window.location.href).searchParams.get("pit_group_slug");
+      return urlSlug || null;
     }
 
     var tokens = path.split("/").filter(Boolean);
     return tokens.length > 1 ? tokens[1] : null;
   }
 
-  function filterByCategory(groupName) {
+  function filterCardsByGroupSlug(slug) {
+    var normalizedSlug = String(slug || "").trim().toLowerCase();
+    if (!normalizedSlug) {
+      return;
+    }
+
+    var cards = Array.prototype.slice.call(
+      document.querySelectorAll(".website-item-card, .product-card, .products-section .card")
+    );
+
+    cards.forEach(function (card) {
+      var link = card.querySelector('a[href*="/products/"]');
+      if (!link) {
+        return;
+      }
+
+      var route = normalizeRoute(link.getAttribute("href") || "");
+      var routeTokens = route.split("/").filter(Boolean);
+      var cardSlug = routeTokens.length > 1 ? String(routeTokens[1]).toLowerCase() : "";
+      card.style.display = cardSlug === normalizedSlug ? "" : "none";
+    });
+  }
+
+  function filterByCategory(groupName, slug) {
     var filterSelect = document.querySelector(
       'select[name="item_group"], .item-group-filter select, select[data-fieldname="item_group"]'
     );
@@ -353,13 +388,45 @@
 
       var currentUrl = new URL(window.location.href);
       currentUrl.searchParams.set("item_group", group);
+      if (slug) {
+        currentUrl.searchParams.set("pit_group_slug", slug);
+      }
       window.history.replaceState({}, "", currentUrl.toString());
       return;
     }
 
-    var target = new URL(window.location.origin + "/all-products");
-    target.searchParams.set("item_group", groupName);
-    window.location.href = target.toString();
+    window.location.href = buildProductsUrl(groupName, slug);
+  }
+
+  function applyCategoryFromUrl(retryCount) {
+    if (!isProductsPage()) {
+      return;
+    }
+
+    var url = new URL(window.location.href);
+    var groupName = (url.searchParams.get("item_group") || "").trim();
+    var slug = (url.searchParams.get("pit_group_slug") || "").trim();
+    if (!groupName && !slug) {
+      return;
+    }
+
+    if (groupName) {
+      var filterSelect = document.querySelector(
+        'select[name="item_group"], .item-group-filter select, select[data-fieldname="item_group"]'
+      );
+
+      if (filterSelect) {
+        filterByCategory(groupName, slug);
+      } else if ((retryCount || 0) < 20) {
+        setTimeout(function () {
+          applyCategoryFromUrl((retryCount || 0) + 1);
+        }, 250);
+      }
+    }
+
+    if (slug) {
+      filterCardsByGroupSlug(slug);
+    }
   }
 
   function createSidebar(navData) {
@@ -403,7 +470,8 @@
       });
 
       if (children.length) {
-        displayGroups = [{ name: selectedGroupName, label: byName[selectedGroupName].label, slug: currentSlug }].concat(children);
+        var selectedLabel = byName[selectedGroupName] ? byName[selectedGroupName].label : selectedGroupName;
+        displayGroups = [{ name: selectedGroupName, label: selectedLabel, slug: currentSlug }].concat(children);
       }
     }
 
@@ -418,8 +486,7 @@
 
       link.addEventListener("click", function (event) {
         event.preventDefault();
-        filterByCategory(group.name);
-        window.location.href = "/products/" + group.slug;
+        window.location.href = buildProductsUrl(group.name, group.slug);
       });
 
       li.appendChild(link);
@@ -441,7 +508,8 @@
     contentRoot.appendChild(layout);
 
     if (currentSlug && navData.slug_to_group && navData.slug_to_group[currentSlug]) {
-      filterByCategory(navData.slug_to_group[currentSlug]);
+      filterByCategory(navData.slug_to_group[currentSlug], currentSlug);
+      filterCardsByGroupSlug(currentSlug);
     }
   }
 
@@ -475,14 +543,14 @@
       col.className = "pit-mega-col";
 
       var title = document.createElement("h6");
-      var titleLink = createLink("/products/" + group.slug, group.label);
+      var titleLink = createLink(buildProductsUrl(group.name, group.slug), group.label);
       title.appendChild(titleLink);
       col.appendChild(title);
 
       var list = document.createElement("ul");
       (group.children || []).forEach(function (child) {
         var item = document.createElement("li");
-        item.appendChild(createLink("/products/" + child.slug, child.label));
+        item.appendChild(createLink(buildProductsUrl(child.name, child.slug), child.label));
         list.appendChild(item);
       });
 
@@ -561,6 +629,11 @@
   }
 
   function getActiveGroupName() {
+    var fromParam = (new URL(window.location.href).searchParams.get("item_group") || "").trim();
+    if (fromParam) {
+      return fromParam;
+    }
+
     var slug = getCurrentCategorySlug();
     if (!slug || !pitNavData || !pitNavData.slug_to_group) {
       return null;
@@ -692,29 +765,39 @@
   }
 
   async function initializeWebshopUX() {
-    await applyThemeSettings();
-    setDirection();
-    renderTopBar();
+    try {
+      await applyThemeSettings();
+      setDirection();
+      renderTopBar();
 
-    pitNavData = await callApi("pitweb.api.get_webshop_navigation");
-    if (pitNavData) {
-      renderMegaMenu(pitNavData);
+      pitNavData = await callApi("pitweb.api.get_webshop_navigation");
+      if (pitNavData) {
+        renderMegaMenu(pitNavData);
+      }
+
+      bindTopSearch();
+
+      if (!isProductsPage()) {
+        return;
+      }
+
+      applyGridClass();
+
+      if (pitNavData) {
+        createSidebar(pitNavData);
+      }
+
+      applyArabicCardContent();
+      applyInitialSearch();
+      applyCategoryFromUrl(0);
+
+      var currentSlug = getCurrentCategorySlug();
+      if (currentSlug) {
+        filterCardsByGroupSlug(currentSlug);
+      }
+    } catch (error) {
+      console.error("PIT webshop UX init failed", error);
     }
-
-    bindTopSearch();
-
-    if (!isProductsPage()) {
-      return;
-    }
-
-    applyGridClass();
-
-    if (pitNavData) {
-      createSidebar(pitNavData);
-    }
-
-    applyArabicCardContent();
-    applyInitialSearch();
   }
 
   onReady(function () {

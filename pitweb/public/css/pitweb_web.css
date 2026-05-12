@@ -192,6 +192,15 @@ body[dir="rtl"] .text-right {
   box-shadow: 0 3px 16px rgba(0, 0, 0, 0.04);
 }
 
+.navbar .navbar-collapse {
+  justify-content: center;
+}
+
+.navbar .navbar-nav {
+  margin-inline: auto;
+  justify-content: center;
+}
+
 .pit-mega-root {
   position: relative;
 }

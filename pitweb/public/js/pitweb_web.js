@@ -232,59 +232,23 @@
 
   function renderTopBar() {
     var navbar = document.querySelector(".navbar");
-    if (!navbar || document.querySelector(".pit-topbar")) {
+    if (!navbar) {
       return;
     }
 
-    var topbar = document.createElement("div");
-    topbar.className = "pit-topbar";
-
-    var left = document.createElement("div");
-    left.className = "pit-topbar-left";
-
-    var logo = document.createElement("div");
-    logo.className = "pit-topbar-logo";
-    var brandSource = document.querySelector(".navbar-brand");
-
-    if (pitThemeSettings && pitThemeSettings.brand_image) {
-      var logoLink = document.createElement("a");
-      logoLink.href = "/";
-      logoLink.className = "pit-topbar-logo-link";
-
-      var logoImage = document.createElement("img");
-      logoImage.src = pitThemeSettings.brand_image;
-      logoImage.alt = t("Brand", "العلامة التجارية");
-      logoLink.appendChild(logoImage);
-      logo.appendChild(logoLink);
-    } else if (brandSource) {
-      logo.innerHTML = brandSource.innerHTML;
+    var navCollapse = navbar.querySelector(".navbar-collapse");
+    if (!navCollapse || navCollapse.querySelector(".pit-navbar-tools")) {
+      return;
     }
 
-    left.appendChild(logo);
+    var tools = document.createElement("div");
+    tools.className = "pit-navbar-tools";
 
-    var right = document.createElement("div");
-    right.className = "pit-topbar-right";
-
-    var social = document.createElement("div");
-    social.className = "pit-social";
-    var fb = (pitThemeSettings && pitThemeSettings.facebook_url) || "https://facebook.com";
-    var yt = (pitThemeSettings && pitThemeSettings.youtube_url) || "https://youtube.com";
-    var tt = (pitThemeSettings && pitThemeSettings.tiktok_url) || "https://tiktok.com";
-    social.appendChild(createSocialLink(fb, t("Facebook", "فيسبوك"), "f"));
-    social.appendChild(createSocialLink(yt, t("YouTube", "يوتيوب"), "▶"));
-    social.appendChild(createSocialLink(tt, t("TikTok", "تيك توك"), "♪"));
-
-    var search = createSearchBar();
     var language = buildLanguageSwitcher();
+    language.classList.add("pit-navbar-language");
+    tools.appendChild(language);
 
-    right.appendChild(social);
-    right.appendChild(search);
-    right.appendChild(language);
-
-    topbar.appendChild(left);
-    topbar.appendChild(right);
-
-    navbar.parentNode.insertBefore(topbar, navbar);
+    navCollapse.appendChild(tools);
   }
 
   function normalizePath(pathname) {

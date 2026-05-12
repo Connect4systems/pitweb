@@ -193,12 +193,25 @@ body[dir="rtl"] .text-right {
 }
 
 .navbar .navbar-collapse {
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
 .navbar .navbar-nav {
   margin-inline: auto;
   justify-content: center;
+}
+
+.pit-navbar-tools {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pit-navbar-language .pit-language-trigger {
+  padding: 0.3rem 0.7rem;
 }
 
 .pit-mega-root {
@@ -394,22 +407,9 @@ body[dir="rtl"] .text-right {
     display: block;
   }
 
-  .pit-topbar {
-    flex-wrap: wrap;
-  }
-
-  .pit-topbar-right {
+  .pit-navbar-tools {
     width: 100%;
     justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .pit-top-search {
-    min-width: 100%;
-    order: 3;
-  }
-
-  .pit-social-link .pit-social-text {
-    display: none;
+    margin-top: 0.45rem;
   }
 }

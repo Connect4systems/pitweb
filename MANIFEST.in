@@ -1,0 +1,8 @@
+include requirements.txt
+include license.txt
+include pitweb/hooks.py
+include pitweb/modules.txt
+include pitweb/patches.txt
+recursive-include pitweb/public *
+recursive-include pitweb/templates *
+recursive-include pitweb/www *

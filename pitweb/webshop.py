@@ -103,6 +103,39 @@ def build_item_group_tree(root_group=None):
     return roots
 
 
+def get_group_descendants(parent_group):
+    parent_group = cstr(parent_group or "").strip()
+    if not parent_group:
+        return []
+
+    groups = frappe.get_all(
+        "Item Group",
+        fields=["name", "parent_item_group"],
+        order_by="lft asc",
+    )
+
+    by_parent = {}
+    for row in groups:
+        by_parent.setdefault(row.parent_item_group, []).append(row.name)
+
+    out = []
+    queue = [parent_group]
+    seen = set()
+
+    while queue:
+        current = queue.pop(0)
+        if current in seen:
+            continue
+
+        seen.add(current)
+        out.append(current)
+        for child in by_parent.get(current, []):
+            if child not in seen:
+                queue.append(child)
+
+    return out
+
+
 def _set_public_file(file_url):
     if not file_url:
         return

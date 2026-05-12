@@ -2,6 +2,7 @@
   "use strict";
 
   var pitThemeSettings = null;
+  var pitNavData = null;
 
   function onReady(fn) {
     if (document.readyState === "loading") {
@@ -46,6 +47,20 @@
 
   function t(en, ar) {
     return isArabic() ? ar : en;
+  }
+
+  function getCurrentLangCode() {
+    var url = new URL(window.location.href);
+    var param = (url.searchParams.get("lang") || "").toLowerCase();
+    if (param === "ar" || param.indexOf("ar-") === 0) {
+      return "ar";
+    }
+
+    if (param === "en" || param.indexOf("en-") === 0) {
+      return "en";
+    }
+
+    return isArabic() ? "ar" : "en";
   }
 
   function appendStylesheet(href) {
@@ -135,6 +150,86 @@
     return url.toString();
   }
 
+  function buildLanguageSwitcher() {
+    var language = document.createElement("div");
+    language.className = "pit-language-switch";
+
+    var currentLang = getCurrentLangCode();
+    var trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "pit-language-trigger";
+    trigger.setAttribute("aria-haspopup", "true");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.innerHTML =
+      '<span class="pit-flag">' +
+      (currentLang === "ar" ? "🇪🇬" : "🇬🇧") +
+      "</span>" +
+      '<span class="pit-language-label">' +
+      (currentLang === "ar" ? "العربية" : "English") +
+      "</span>" +
+      '<span class="pit-language-caret">▾</span>';
+
+    var menu = document.createElement("div");
+    menu.className = "pit-language-menu";
+
+    var options = [
+      { code: "ar", label: "العربية", flag: "🇪🇬" },
+      { code: "en", label: "English", flag: "🇬🇧" },
+    ];
+
+    options.forEach(function (option) {
+      var item = document.createElement("button");
+      item.type = "button";
+      item.className = "pit-language-option" + (currentLang === option.code ? " is-active" : "");
+      item.innerHTML =
+        '<span class="pit-flag">' + option.flag + '</span><span class="pit-language-label">' + option.label + "</span>";
+      item.addEventListener("click", function () {
+        window.location.href = updateLanguageHref(option.code);
+      });
+      menu.appendChild(item);
+    });
+
+    trigger.addEventListener("click", function () {
+      var open = language.classList.toggle("is-open");
+      trigger.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!language.contains(event.target)) {
+        language.classList.remove("is-open");
+        trigger.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    language.appendChild(trigger);
+    language.appendChild(menu);
+    return language;
+  }
+
+  function createSearchBar() {
+    var wrap = document.createElement("form");
+    wrap.className = "pit-top-search";
+    wrap.setAttribute("role", "search");
+
+    var input = document.createElement("input");
+    input.type = "search";
+    input.className = "pit-top-search-input";
+    input.placeholder = t("Search products", "ابحث عن المنتجات");
+    input.setAttribute("aria-label", t("Search products", "ابحث عن المنتجات"));
+
+    var params = new URL(window.location.href).searchParams;
+    input.value = params.get("search") || "";
+
+    var submit = document.createElement("button");
+    submit.type = "submit";
+    submit.className = "pit-top-search-btn";
+    submit.textContent = t("Search", "بحث");
+
+    wrap.appendChild(input);
+    wrap.appendChild(submit);
+    return wrap;
+  }
+
   function renderTopBar() {
     var navbar = document.querySelector(".navbar");
     if (!navbar || document.querySelector(".pit-topbar")) {
@@ -144,12 +239,31 @@
     var topbar = document.createElement("div");
     topbar.className = "pit-topbar";
 
+    var left = document.createElement("div");
+    left.className = "pit-topbar-left";
+
     var logo = document.createElement("div");
     logo.className = "pit-topbar-logo";
     var brandSource = document.querySelector(".navbar-brand");
-    if (brandSource) {
+
+    if (pitThemeSettings && pitThemeSettings.brand_image) {
+      var logoLink = document.createElement("a");
+      logoLink.href = "/";
+      logoLink.className = "pit-topbar-logo-link";
+
+      var logoImage = document.createElement("img");
+      logoImage.src = pitThemeSettings.brand_image;
+      logoImage.alt = t("Brand", "العلامة التجارية");
+      logoLink.appendChild(logoImage);
+      logo.appendChild(logoLink);
+    } else if (brandSource) {
       logo.innerHTML = brandSource.innerHTML;
     }
+
+    left.appendChild(logo);
+
+    var right = document.createElement("div");
+    right.className = "pit-topbar-right";
 
     var social = document.createElement("div");
     social.className = "pit-social";
@@ -160,19 +274,15 @@
     social.appendChild(createSocialLink(yt, t("YouTube", "يوتيوب"), "▶"));
     social.appendChild(createSocialLink(tt, t("TikTok", "تيك توك"), "♪"));
 
-    var language = document.createElement("div");
-    language.className = "pit-language-switch";
+    var search = createSearchBar();
+    var language = buildLanguageSwitcher();
 
-    var isAr = isArabic();
-    var english = createLink(updateLanguageHref("en"), t("EN", "الانجليزية"), isAr ? "" : "is-active");
-    var arabic = createLink(updateLanguageHref("ar"), t("AR", "العربية"), isAr ? "is-active" : "");
+    right.appendChild(social);
+    right.appendChild(search);
+    right.appendChild(language);
 
-    language.appendChild(english);
-    language.appendChild(arabic);
-
-    topbar.appendChild(logo);
-    topbar.appendChild(social);
-    topbar.appendChild(language);
+    topbar.appendChild(left);
+    topbar.appendChild(right);
 
     navbar.parentNode.insertBefore(topbar, navbar);
   }
@@ -184,6 +294,12 @@
   function isProductsPage() {
     var path = normalizePath(window.location.pathname);
     return path === "/all-products" || path === "/products" || path.indexOf("/products/") === 0;
+  }
+
+  function normalizeRoute(path) {
+    var route = String(path || "");
+    route = route.replace(window.location.origin, "").replace(/^\//, "").replace(/\/+$/, "");
+    return route;
   }
 
   function applyGridClass() {
@@ -214,8 +330,30 @@
     );
 
     if (filterSelect) {
-      filterSelect.value = groupName;
+      var group = String(groupName || "").trim();
+      var options = Array.prototype.slice.call(filterSelect.options || []);
+      var match = options.find(function (opt) {
+        return String(opt.value || "").trim() === group;
+      });
+
+      if (!match) {
+        match = options.find(function (opt) {
+          return String(opt.textContent || "").trim().toLowerCase() === group.toLowerCase();
+        });
+      }
+
+      if (match) {
+        filterSelect.value = match.value;
+      } else {
+        filterSelect.value = group;
+      }
+
+      filterSelect.dispatchEvent(new Event("input", { bubbles: true }));
       filterSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+      var currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set("item_group", group);
+      window.history.replaceState({}, "", currentUrl.toString());
       return;
     }
 
@@ -252,8 +390,24 @@
 
     var list = document.createElement("ul");
     var currentSlug = getCurrentCategorySlug();
+    var selectedGroupName = currentSlug && navData.slug_to_group ? navData.slug_to_group[currentSlug] : null;
+    var byName = {};
+    groups.forEach(function (g) {
+      byName[g.name] = g;
+    });
 
-    groups.forEach(function (group) {
+    var displayGroups = groups;
+    if (selectedGroupName) {
+      var children = groups.filter(function (g) {
+        return g.parent === selectedGroupName;
+      });
+
+      if (children.length) {
+        displayGroups = [{ name: selectedGroupName, label: byName[selectedGroupName].label, slug: currentSlug }].concat(children);
+      }
+    }
+
+    displayGroups.forEach(function (group) {
       var li = document.createElement("li");
       var link = document.createElement("a");
       link.href = "/products/" + group.slug;
@@ -265,7 +419,7 @@
       link.addEventListener("click", function (event) {
         event.preventDefault();
         filterByCategory(group.name);
-        window.history.pushState({}, "", "/products/" + group.slug);
+        window.location.href = "/products/" + group.slug;
       });
 
       li.appendChild(link);
@@ -372,7 +526,7 @@
         return;
       }
 
-      var route = path.replace(window.location.origin, "").replace(/^\//, "");
+      var route = normalizeRoute(path);
       routes.push(route);
       card.setAttribute("data-pit-route", route);
     });
@@ -406,15 +560,148 @@
     });
   }
 
+  function getActiveGroupName() {
+    var slug = getCurrentCategorySlug();
+    if (!slug || !pitNavData || !pitNavData.slug_to_group) {
+      return null;
+    }
+
+    return pitNavData.slug_to_group[slug] || null;
+  }
+
+  function getProductCards() {
+    return Array.prototype.slice.call(
+      document.querySelectorAll(".website-item-card, .product-card, .products-section .card")
+    );
+  }
+
+  function ensureCardRoutes() {
+    getProductCards().forEach(function (card) {
+      if (card.getAttribute("data-pit-route")) {
+        return;
+      }
+
+      var link = card.querySelector('a[href*="/products/"]');
+      if (!link) {
+        return;
+      }
+
+      card.setAttribute("data-pit-route", normalizeRoute(link.getAttribute("href") || ""));
+    });
+  }
+
+  function showSearchEmptyState(show) {
+    var root = document.querySelector(".pit-products-body") || document.querySelector(".page_content") || document.body;
+    var state = document.querySelector(".pit-search-empty");
+
+    if (!show) {
+      if (state) {
+        state.remove();
+      }
+      return;
+    }
+
+    if (state) {
+      return;
+    }
+
+    state = document.createElement("div");
+    state.className = "pit-search-empty";
+    state.textContent = t("No items matched your search.", "لا توجد منتجات مطابقة للبحث.");
+    root.appendChild(state);
+  }
+
+  function filterCardsByRoutes(routes) {
+    var allowed = new Set((routes || []).map(normalizeRoute));
+    var visibleCount = 0;
+
+    ensureCardRoutes();
+    getProductCards().forEach(function (card) {
+      var route = normalizeRoute(card.getAttribute("data-pit-route") || "");
+      var visible = !allowed.size || allowed.has(route);
+      card.style.display = visible ? "" : "none";
+      if (visible) {
+        visibleCount += 1;
+      }
+    });
+
+    showSearchEmptyState(allowed.size > 0 && visibleCount === 0);
+  }
+
+  async function runProductSearch(searchText) {
+    var text = String(searchText || "").trim();
+    var activeGroup = getActiveGroupName();
+
+    if (!text) {
+      filterCardsByRoutes([]);
+      var clearUrl = new URL(window.location.href);
+      clearUrl.searchParams.delete("search");
+      window.history.replaceState({}, "", clearUrl.toString());
+      return;
+    }
+
+    var result = await callApi("pitweb.api.search_webshop_items", {
+      query: text,
+      item_group: activeGroup,
+      limit: 500,
+    });
+
+    var routes = (result && result.routes) || [];
+    filterCardsByRoutes(routes);
+
+    var nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("search", text);
+    window.history.replaceState({}, "", nextUrl.toString());
+  }
+
+  function bindTopSearch() {
+    var form = document.querySelector(".pit-top-search");
+    var input = form && form.querySelector(".pit-top-search-input");
+    if (!form || !input) {
+      return;
+    }
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var query = String(input.value || "").trim();
+
+      if (isProductsPage()) {
+        runProductSearch(query);
+        return;
+      }
+
+      var url = new URL(window.location.origin + "/all-products");
+      if (query) {
+        url.searchParams.set("search", query);
+      }
+      window.location.href = url.toString();
+    });
+  }
+
+  function applyInitialSearch() {
+    if (!isProductsPage()) {
+      return;
+    }
+
+    var query = new URL(window.location.href).searchParams.get("search") || "";
+    if (!query) {
+      return;
+    }
+
+    runProductSearch(query);
+  }
+
   async function initializeWebshopUX() {
     await applyThemeSettings();
     setDirection();
     renderTopBar();
 
-    var navData = await callApi("pitweb.api.get_webshop_navigation");
-    if (navData) {
-      renderMegaMenu(navData);
+    pitNavData = await callApi("pitweb.api.get_webshop_navigation");
+    if (pitNavData) {
+      renderMegaMenu(pitNavData);
     }
+
+    bindTopSearch();
 
     if (!isProductsPage()) {
       return;
@@ -422,11 +709,12 @@
 
     applyGridClass();
 
-    if (navData) {
-      createSidebar(navData);
+    if (pitNavData) {
+      createSidebar(pitNavData);
     }
 
     applyArabicCardContent();
+    applyInitialSearch();
   }
 
   onReady(function () {

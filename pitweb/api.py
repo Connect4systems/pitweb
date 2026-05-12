@@ -1,6 +1,7 @@
 import frappe
 
 from pitweb.webshop import build_item_group_tree, get_published_item_groups
+from pitweb.webshop import get_group_descendants
 
 
 @frappe.whitelist(allow_guest=True)
@@ -12,11 +13,17 @@ def health_check():
 @frappe.whitelist(allow_guest=True)
 def get_webshop_theme_settings():
     settings = None
+    brand_image = None
     try:
         settings = frappe.get_single("PIT Webshop Settings")
     except Exception:
         # Keep storefront usable even if DocType sync is temporarily broken.
         settings = None
+
+    try:
+        brand_image = frappe.db.get_single_value("Website Settings", "brand_image")
+    except Exception:
+        brand_image = None
 
     return {
         "primary_color": (settings.primary_color if settings else None) or "#d71920",
@@ -31,6 +38,7 @@ def get_webshop_theme_settings():
         "facebook_url": (settings.facebook_url if settings else None) or "https://facebook.com",
         "youtube_url": (settings.youtube_url if settings else None) or "https://youtube.com",
         "tiktok_url": (settings.tiktok_url if settings else None) or "https://tiktok.com",
+        "brand_image": brand_image,
     }
 
 
@@ -86,3 +94,56 @@ def get_arabic_content_for_routes(routes=None):
         }
 
     return out
+
+
+@frappe.whitelist(allow_guest=True)
+def search_webshop_items(query=None, item_group=None, limit=200):
+    query = (query or "").strip()
+    if not query:
+        return {"routes": []}
+
+    limit = max(1, min(frappe.utils.cint(limit) or 200, 500))
+
+    has_ar_name = frappe.db.has_column("Item", "custom_arabic_name")
+    has_ar_desc = frappe.db.has_column("Item", "custom_arabic_description")
+
+    ar_name_expr = "COALESCE(i.custom_arabic_name, '')" if has_ar_name else "''"
+    ar_desc_expr = "COALESCE(i.custom_arabic_description, '')" if has_ar_desc else "''"
+
+    where_parts = [
+        "wi.published = 1",
+        "("
+        "LOWER(COALESCE(i.item_name, '')) LIKE %(pattern)s OR "
+        "LOWER(COALESCE(i.description, '')) LIKE %(pattern)s OR "
+        f"LOWER({ar_name_expr}) LIKE %(pattern)s OR "
+        f"LOWER({ar_desc_expr}) LIKE %(pattern)s"
+        ")",
+    ]
+
+    values = {
+        "pattern": f"%{query.lower()}%",
+        "limit": limit,
+    }
+
+    item_group = (item_group or "").strip()
+    if item_group:
+        groups = get_group_descendants(item_group)
+        if groups:
+            where_parts.append("i.item_group IN %(groups)s")
+            values["groups"] = tuple(groups)
+
+    rows = frappe.db.sql(
+        f"""
+        SELECT wi.route
+        FROM `tabWebsite Item` wi
+        INNER JOIN `tabItem` i ON i.name = wi.item_code
+        WHERE {' AND '.join(where_parts)}
+        ORDER BY wi.modified DESC
+        LIMIT %(limit)s
+        """,
+        values,
+        as_dict=True,
+    )
+
+    routes = [row.route for row in rows if row.get("route")]
+    return {"routes": routes}

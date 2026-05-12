@@ -21,7 +21,10 @@ def get_webshop_theme_settings():
         settings = None
 
     try:
-        brand_image = frappe.db.get_single_value("Website Settings", "brand_image")
+        if frappe.db.has_column("Website Settings", "brand_image"):
+            brand_image = frappe.db.get_single_value("Website Settings", "brand_image")
+        elif frappe.db.has_column("Website Settings", "banner_image"):
+            brand_image = frappe.db.get_single_value("Website Settings", "banner_image")
     except Exception:
         brand_image = None
 

@@ -1,12 +1,7 @@
+import re
+
 import frappe
 from frappe.utils import cint, cstr
-
-try:
-    # Frappe v15+
-    from frappe.utils.data import scrub
-except ImportError:
-    # Backward compatibility for older Frappe versions
-    from frappe.utils import scrub
 
 ROOT_GROUP_CANDIDATES = ("ALL PRODUCTS", "All Products")
 
@@ -29,7 +24,10 @@ def _is_published_group(doc):
 
 
 def _build_slug(name):
-    return scrub(cstr(name)).replace("_", "-")
+    value = cstr(name or "").strip().lower()
+    # Keep URL slugs stable without relying on Frappe's scrub helper.
+    value = re.sub(r"[^a-z0-9]+", "_", value).strip("_")
+    return value.replace("_", "-")
 
 
 def get_published_item_groups(root_group=None):

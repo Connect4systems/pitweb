@@ -12,8 +12,8 @@ web_include_js = ["/assets/pitweb/js/pitweb_web.js"]
 
 # Support cleaner webshop routes while preserving ERPNext webshop behavior.
 website_route_rules = [
-	{"from_route": "products", "to_route": "all-products"},
-	{"from_route": "products/<category_slug>", "to_route": "all-products"},
+	{"from_route": "/products", "to_route": "all-products"},
+	{"from_route": "/products/<category_slug>", "to_route": "all-products"},
 ]
 
 doc_events = {

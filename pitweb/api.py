@@ -11,21 +11,26 @@ def health_check():
 
 @frappe.whitelist(allow_guest=True)
 def get_webshop_theme_settings():
-    settings = frappe.get_single("PIT Webshop Settings")
+    settings = None
+    try:
+        settings = frappe.get_single("PIT Webshop Settings")
+    except Exception:
+        # Keep storefront usable even if DocType sync is temporarily broken.
+        settings = None
 
     return {
-        "primary_color": settings.primary_color or "#d71920",
-        "dark_text_color": settings.dark_text_color or "#1f1f1f",
-        "light_background_color": settings.light_background_color or "#f7f7f7",
-        "card_background_color": settings.card_background_color or "#ffffff",
-        "border_color": settings.border_color or "#e5e5e5",
-        "base_font_family": settings.base_font_family or "Poppins, sans-serif",
-        "arabic_font_family": settings.arabic_font_family or "Cairo, sans-serif",
-        "base_font_url": settings.base_font_url,
-        "arabic_font_url": settings.arabic_font_url,
-        "facebook_url": settings.facebook_url or "https://facebook.com",
-        "youtube_url": settings.youtube_url or "https://youtube.com",
-        "tiktok_url": settings.tiktok_url or "https://tiktok.com",
+        "primary_color": (settings.primary_color if settings else None) or "#d71920",
+        "dark_text_color": (settings.dark_text_color if settings else None) or "#1f1f1f",
+        "light_background_color": (settings.light_background_color if settings else None) or "#f7f7f7",
+        "card_background_color": (settings.card_background_color if settings else None) or "#ffffff",
+        "border_color": (settings.border_color if settings else None) or "#e5e5e5",
+        "base_font_family": (settings.base_font_family if settings else None) or "Poppins, sans-serif",
+        "arabic_font_family": (settings.arabic_font_family if settings else None) or "Cairo, sans-serif",
+        "base_font_url": settings.base_font_url if settings else None,
+        "arabic_font_url": settings.arabic_font_url if settings else None,
+        "facebook_url": (settings.facebook_url if settings else None) or "https://facebook.com",
+        "youtube_url": (settings.youtube_url if settings else None) or "https://youtube.com",
+        "tiktok_url": (settings.tiktok_url if settings else None) or "https://tiktok.com",
     }
 
 

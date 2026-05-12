@@ -19,11 +19,19 @@
   "base_font_family",
   "arabic_font_family",
   "base_font_url",
+<<<<<<< HEAD
   "arabic_font_url",
   "social_section",
   "facebook_url",
   "youtube_url",
   "tiktok_url"
+=======
+    "arabic_font_url",
+    "social_section",
+    "facebook_url",
+    "youtube_url",
+    "tiktok_url"
+>>>>>>> c5518e4 (web)
  ],
  "fields": [
   {
@@ -96,6 +104,7 @@
    "fieldname": "arabic_font_url",
    "fieldtype": "Data",
    "label": "Arabic Font URL"
+<<<<<<< HEAD
   },
   {
    "fieldname": "social_section",
@@ -119,6 +128,31 @@
    "fieldname": "tiktok_url",
    "fieldtype": "Data",
    "label": "TikTok URL"
+=======
+    },
+    {
+     "fieldname": "social_section",
+     "fieldtype": "Section Break",
+     "label": "Social Links"
+    },
+    {
+     "default": "https://facebook.com",
+     "fieldname": "facebook_url",
+     "fieldtype": "Data",
+     "label": "Facebook URL"
+    },
+    {
+     "default": "https://youtube.com",
+     "fieldname": "youtube_url",
+     "fieldtype": "Data",
+     "label": "YouTube URL"
+    },
+    {
+     "default": "https://tiktok.com",
+     "fieldname": "tiktok_url",
+     "fieldtype": "Data",
+     "label": "TikTok URL"
+>>>>>>> c5518e4 (web)
   }
  ],
  "index_web_pages_for_search": 1,

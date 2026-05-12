@@ -4,6 +4,12 @@ from pitweb.webshop import build_item_group_tree, get_published_item_groups
 
 
 @frappe.whitelist(allow_guest=True)
+def health_check():
+    # Smoke-check endpoint used to verify API/module import health after deploy.
+    return {"ok": True, "app": "pitweb", "module": "pitweb.api"}
+
+
+@frappe.whitelist(allow_guest=True)
 def get_webshop_theme_settings():
     settings = frappe.get_single("PIT Webshop Settings")
 

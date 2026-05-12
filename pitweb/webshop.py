@@ -1,5 +1,12 @@
 import frappe
-from frappe.utils import cint, cstr, scrub
+from frappe.utils import cint, cstr
+
+try:
+    # Frappe v15+
+    from frappe.utils.data import scrub
+except ImportError:
+    # Backward compatibility for older Frappe versions
+    from frappe.utils import scrub
 
 ROOT_GROUP_CANDIDATES = ("ALL PRODUCTS", "All Products")
 

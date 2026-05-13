@@ -150,3 +150,34 @@ def search_webshop_items(query=None, item_group=None, limit=200):
 
     routes = [row.route for row in rows if row.get("route")]
     return {"routes": routes}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_webshop_item_routes(item_group=None, limit=5000):
+    limit = max(1, min(frappe.utils.cint(limit) or 5000, 5000))
+
+    where_parts = ["wi.published = 1"]
+    values = {"limit": limit}
+
+    item_group = (item_group or "").strip()
+    if item_group:
+        groups = get_group_descendants(item_group)
+        if groups:
+            where_parts.append("i.item_group IN %(groups)s")
+            values["groups"] = tuple(groups)
+
+    rows = frappe.db.sql(
+        f"""
+        SELECT wi.route
+        FROM `tabWebsite Item` wi
+        INNER JOIN `tabItem` i ON i.name = wi.item_code
+        WHERE {' AND '.join(where_parts)}
+        ORDER BY wi.modified DESC
+        LIMIT %(limit)s
+        """,
+        values,
+        as_dict=True,
+    )
+
+    routes = [row.route for row in rows if row.get("route")]
+    return {"routes": routes}

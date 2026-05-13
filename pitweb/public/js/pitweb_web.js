@@ -815,6 +815,54 @@
     runProductSearch(query);
   }
 
+  async function applyStrictCategoryFilterFromUrl(retryCount) {
+    if (!isProductsPage()) {
+      return;
+    }
+
+    var url = new URL(window.location.href);
+    var searchText = (url.searchParams.get("search") || "").trim();
+    if (searchText) {
+      return;
+    }
+
+    var groupName = (url.searchParams.get("item_group") || "").trim();
+    var slug = (url.searchParams.get("pit_group_slug") || "").trim();
+
+    if (!groupName && slug && pitNavData && pitNavData.slug_to_group) {
+      groupName = String(pitNavData.slug_to_group[slug] || "").trim();
+    }
+
+    if (!groupName) {
+      return;
+    }
+
+    var retries = retryCount || 0;
+    var cards = getProductCards();
+    var linkedCards = cards.filter(function (card) {
+      return !!card.querySelector('a[href*="/products/"]');
+    });
+
+    if ((cards.length === 0 || linkedCards.length === 0) && retries < 20) {
+      setTimeout(function () {
+        applyStrictCategoryFilterFromUrl(retries + 1);
+      }, 250);
+      return;
+    }
+
+    var result = await callApi("pitweb.api.get_webshop_item_routes", {
+      item_group: groupName,
+      limit: 5000,
+    });
+
+    var routes = (result && result.routes) || [];
+    filterCardsByRoutes(routes);
+
+    if (slug) {
+      filterCardsByGroupSlug(slug);
+    }
+  }
+
   async function initializeWebshopUX() {
     try {
       await applyThemeSettings();
@@ -824,7 +872,6 @@
       pitNavData = await callApi("pitweb.api.get_webshop_navigation");
       if (pitNavData) {
         rewriteCategoryLinks(pitNavData);
-        renderMegaMenu(pitNavData);
       }
 
       bindTopSearch();
@@ -840,8 +887,9 @@
       }
 
       applyArabicCardContent();
-      applyInitialSearch();
       applyCategoryFromUrl(0);
+      applyStrictCategoryFilterFromUrl(0);
+      applyInitialSearch();
 
       var currentSlug = getCurrentCategorySlug();
       if (currentSlug) {

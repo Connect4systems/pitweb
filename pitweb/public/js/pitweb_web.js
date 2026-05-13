@@ -1190,3 +1190,74 @@
     scheduleSlugFallbackFilter();
   });
 })();
+
+(function () {
+  "use strict";
+
+  function normalize(text) {
+    return String(text || "").trim().toLowerCase();
+  }
+
+  function slugify(text) {
+    var slug = normalize(text);
+    slug = slug.replace(/[^\w]+/g, "-");
+    slug = slug.replace(/[_-]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug;
+  }
+
+  function enforceUrlCategoryFilter() {
+    var url = new URL(window.location.href);
+    var path = (url.pathname || "").replace(/\/+$/, "");
+    if (!(path === "/all-products" || path === "/products" || path.indexOf("/products/") === 0)) {
+      return;
+    }
+
+    var rootSlug = normalize(url.searchParams.get("pit_group_slug") || "");
+    if (!rootSlug) {
+      return;
+    }
+
+    var allowed = new Set([rootSlug]);
+    var sidebarLinks = Array.prototype.slice.call(
+      document.querySelectorAll('.pit-category-sidebar a[href^="/products/"]')
+    );
+    sidebarLinks.forEach(function (link) {
+      var href = normalize(link.getAttribute("href") || "");
+      if (!href) {
+        return;
+      }
+
+      var slug = href.replace(/^\/products\//, "").replace(/\/+$/, "");
+      if (slug) {
+        allowed.add(slug);
+      }
+    });
+
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".item-card"));
+    cards.forEach(function (card) {
+      var link =
+        card.querySelector("a.product-link, a.product-list-link") || card.querySelector("a[href]");
+      var href = normalize((link && link.getAttribute("href")) || "").replace(/^\//, "");
+      var firstToken = href.split("/").filter(Boolean)[0] || "";
+      var categoryText = normalize((card.querySelector(".product-category") || {}).textContent || "");
+      var categorySlug = slugify(categoryText);
+      var visible = allowed.has(firstToken) || allowed.has(categorySlug);
+      card.style.display = visible ? "" : "none";
+    });
+  }
+
+  var attempts = 0;
+  var timer = setInterval(function () {
+    attempts += 1;
+    enforceUrlCategoryFilter();
+    if (attempts >= 12) {
+      clearInterval(timer);
+    }
+  }, 1000);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", enforceUrlCategoryFilter);
+  } else {
+    enforceUrlCategoryFilter();
+  }
+})();

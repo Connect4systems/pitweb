@@ -3,6 +3,7 @@
 
   var pitThemeSettings = null;
   var pitNavData = null;
+  var PRODUCT_CARD_SELECTOR = ".website-item-card, .product-card, .products-section .card, .item-card, .products-list .card";
 
   function onReady(fn) {
     if (document.readyState === "loading") {
@@ -266,6 +267,78 @@
     return route;
   }
 
+  function normalizeCompareText(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function slugifyText(value) {
+    var slug = String(value || "").trim().toLowerCase();
+    slug = slug.replace(/[^\w]+/g, "-");
+    slug = slug.replace(/[_-]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug;
+  }
+
+  function getCardLinkElement(card) {
+    if (!card) {
+      return null;
+    }
+
+    var explicit = card.querySelector("a.product-link, a.product-list-link");
+    if (explicit) {
+      return explicit;
+    }
+
+    var links = Array.prototype.slice.call(card.querySelectorAll("a[href]"));
+    return (
+      links.find(function (link) {
+        var href = String(link.getAttribute("href") || "").trim();
+        if (!href || href.indexOf("#") === 0 || href.indexOf("javascript:") === 0) {
+          return false;
+        }
+
+        return href.indexOf("/") === 0 && href !== "/cart" && href !== "/wishlist" && href !== "/all-products";
+      }) || null
+    );
+  }
+
+  function resolveCardGroupSlug(card) {
+    var link = getCardLinkElement(card);
+    if (link) {
+      var route = normalizeRoute(link.getAttribute("href") || "");
+      var routeTokens = route.split("/").filter(Boolean);
+      if (routeTokens.length > 1) {
+        return routeTokens[0] === "products" ? String(routeTokens[1] || "").toLowerCase() : String(routeTokens[0]).toLowerCase();
+      }
+
+      if (routeTokens.length === 1 && routeTokens[0] !== "products") {
+        return String(routeTokens[0]).toLowerCase();
+      }
+    }
+
+    var categoryText = normalizeCompareText(
+      (card.querySelector(".product-category") && card.querySelector(".product-category").textContent) || ""
+    );
+    if (!categoryText) {
+      return "";
+    }
+
+    if (pitNavData && pitNavData.groups && pitNavData.groups.length) {
+      var group = pitNavData.groups.find(function (row) {
+        return (
+          normalizeCompareText(row && row.name) === categoryText ||
+          normalizeCompareText(row && row.label) === categoryText ||
+          normalizeCompareText(row && row.slug) === categoryText
+        );
+      });
+
+      if (group && group.slug) {
+        return String(group.slug).toLowerCase();
+      }
+    }
+
+    return slugifyText(categoryText);
+  }
+
   function buildProductsUrl(groupName, slug) {
     var url = new URL(window.location.origin + "/all-products");
     if (groupName) {
@@ -314,7 +387,7 @@
       root.classList.add("pit-product-grid");
     });
 
-    var cards = document.querySelectorAll(".website-item-card, .product-card, .products-section .card");
+    var cards = document.querySelectorAll(PRODUCT_CARD_SELECTOR);
     cards.forEach(function (card) {
       card.classList.add("pit-product-card");
     });
@@ -337,24 +410,18 @@
       return { total: 0, inspected: 0, visible: 0 };
     }
 
-    var cards = Array.prototype.slice.call(
-      document.querySelectorAll(".website-item-card, .product-card, .products-section .card")
-    );
+    var cards = getProductCards();
 
     var inspected = 0;
     var visible = 0;
 
     cards.forEach(function (card) {
-      var link = card.querySelector('a[href*="/products/"]');
-      if (!link) {
+      var cardSlug = resolveCardGroupSlug(card);
+      if (!cardSlug) {
         return;
       }
 
       inspected += 1;
-
-      var route = normalizeRoute(link.getAttribute("href") || "");
-      var routeTokens = route.split("/").filter(Boolean);
-      var cardSlug = routeTokens.length > 1 ? String(routeTokens[1]).toLowerCase() : "";
       var isVisible = cardSlug === normalizedSlug;
       card.style.display = isVisible ? "" : "none";
       if (isVisible) {
@@ -426,20 +493,15 @@
       return;
     }
 
-    var cards = Array.prototype.slice.call(
-      document.querySelectorAll(".website-item-card, .product-card, .products-section .card")
-    );
+    var cards = getProductCards();
 
     cards.forEach(function (card) {
-      var link = card.querySelector('a[href*="/products/"]');
-      if (!link) {
+      var cardSlug = resolveCardGroupSlug(card);
+      if (!cardSlug) {
         card.style.display = strict ? "none" : "";
         return;
       }
 
-      var route = normalizeRoute(link.getAttribute("href") || "");
-      var routeTokens = route.split("/").filter(Boolean);
-      var cardSlug = routeTokens.length > 1 ? String(routeTokens[1]).toLowerCase() : "";
       card.style.display = allowed.has(cardSlug) ? "" : "none";
     });
   }
@@ -707,14 +769,14 @@
       return;
     }
 
-    var cards = document.querySelectorAll(".website-item-card, .product-card, .products-section .card");
+    var cards = document.querySelectorAll(PRODUCT_CARD_SELECTOR);
     if (!cards.length) {
       return;
     }
 
     var routes = [];
     cards.forEach(function (card) {
-      var link = card.querySelector('a[href*="/products/"]');
+      var link = getCardLinkElement(card);
       if (!link) {
         return;
       }
@@ -773,9 +835,7 @@
   }
 
   function getProductCards() {
-    return Array.prototype.slice.call(
-      document.querySelectorAll(".website-item-card, .product-card, .products-section .card")
-    );
+    return Array.prototype.slice.call(document.querySelectorAll(PRODUCT_CARD_SELECTOR));
   }
 
   function ensureCardRoutes() {
@@ -784,7 +844,7 @@
         return;
       }
 
-      var link = card.querySelector('a[href*="/products/"]');
+      var link = getCardLinkElement(card);
       if (!link) {
         return;
       }
@@ -924,7 +984,7 @@
     var retries = retryCount || 0;
     var cards = getProductCards();
     var linkedCards = cards.filter(function (card) {
-      return !!card.querySelector('a[href*="/products/"]');
+      return !!getCardLinkElement(card);
     });
 
     if ((cards.length === 0 || linkedCards.length === 0) && retries < 20) {

@@ -11,6 +11,11 @@ def _resolve_item_group(item_group=None, item_group_slug=None):
     if group_name and frappe.db.exists("Item Group", group_name):
         return group_name
 
+    if group_name:
+        matched_name = frappe.db.get_value("Item Group", {"item_group_name": group_name}, "name")
+        if matched_name:
+            return matched_name
+
     if group_slug:
         groups = get_published_item_groups()
         for row in groups:

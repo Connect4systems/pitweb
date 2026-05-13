@@ -735,21 +735,24 @@
     root.appendChild(state);
   }
 
-  function filterCardsByRoutes(routes) {
+  function filterCardsByRoutes(routes, options) {
+    options = options || {};
+    var strict = !!options.strict;
     var allowed = new Set((routes || []).map(normalizeRoute));
     var visibleCount = 0;
+    var hasConstraint = strict || allowed.size > 0;
 
     ensureCardRoutes();
     getProductCards().forEach(function (card) {
       var route = normalizeRoute(card.getAttribute("data-pit-route") || "");
-      var visible = !allowed.size || allowed.has(route);
+      var visible = !hasConstraint || allowed.has(route);
       card.style.display = visible ? "" : "none";
       if (visible) {
         visibleCount += 1;
       }
     });
 
-    showSearchEmptyState(allowed.size > 0 && visibleCount === 0);
+    showSearchEmptyState(hasConstraint && visibleCount === 0);
   }
 
   async function runProductSearch(searchText) {
@@ -758,7 +761,7 @@
     var activeSlug = (getCurrentCategorySlug() || "").trim();
 
     if (!text) {
-      filterCardsByRoutes([]);
+      filterCardsByRoutes([], { strict: false });
       var clearUrl = new URL(window.location.href);
       clearUrl.searchParams.delete("search");
       window.history.replaceState({}, "", clearUrl.toString());
@@ -773,7 +776,7 @@
     });
 
     var routes = (result && result.routes) || [];
-    filterCardsByRoutes(routes);
+  filterCardsByRoutes(routes, { strict: true });
 
     var nextUrl = new URL(window.location.href);
     nextUrl.searchParams.set("search", text);
@@ -859,7 +862,7 @@
     });
 
     var routes = (result && result.routes) || [];
-    filterCardsByRoutes(routes);
+    filterCardsByRoutes(routes, { strict: true });
 
     if (slug) {
       filterCardsByGroupSlug(slug);

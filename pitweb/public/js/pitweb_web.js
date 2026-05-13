@@ -334,12 +334,15 @@
   function filterCardsByGroupSlug(slug) {
     var normalizedSlug = String(slug || "").trim().toLowerCase();
     if (!normalizedSlug) {
-      return;
+      return { total: 0, inspected: 0, visible: 0 };
     }
 
     var cards = Array.prototype.slice.call(
       document.querySelectorAll(".website-item-card, .product-card, .products-section .card")
     );
+
+    var inspected = 0;
+    var visible = 0;
 
     cards.forEach(function (card) {
       var link = card.querySelector('a[href*="/products/"]');
@@ -347,11 +350,19 @@
         return;
       }
 
+      inspected += 1;
+
       var route = normalizeRoute(link.getAttribute("href") || "");
       var routeTokens = route.split("/").filter(Boolean);
       var cardSlug = routeTokens.length > 1 ? String(routeTokens[1]).toLowerCase() : "";
-      card.style.display = cardSlug === normalizedSlug ? "" : "none";
+      var isVisible = cardSlug === normalizedSlug;
+      card.style.display = isVisible ? "" : "none";
+      if (isVisible) {
+        visible += 1;
+      }
     });
+
+    return { total: cards.length, inspected: inspected, visible: visible };
   }
 
   function filterByCategory(groupName, slug) {
@@ -424,11 +435,7 @@
       }
 
       var groupName = slugToGroup[slug];
-      if (!groupName) {
-        return;
-      }
-
-      link.setAttribute("href", buildProductsUrl(groupName, slug));
+      link.setAttribute("href", buildProductsUrl(groupName || "", slug));
     });
   }
 
@@ -444,6 +451,9 @@
       return;
     }
 
+    var retries = retryCount || 0;
+    var needsRetry = false;
+
     if (groupName) {
       var filterSelect = document.querySelector(
         'select[name="item_group"], .item-group-filter select, select[data-fieldname="item_group"]'
@@ -451,15 +461,22 @@
 
       if (filterSelect) {
         filterByCategory(groupName, slug);
-      } else if ((retryCount || 0) < 20) {
-        setTimeout(function () {
-          applyCategoryFromUrl((retryCount || 0) + 1);
-        }, 250);
+      } else if (retries < 20) {
+        needsRetry = true;
       }
     }
 
     if (slug) {
-      filterCardsByGroupSlug(slug);
+      var result = filterCardsByGroupSlug(slug);
+      if ((result.total === 0 || result.inspected === 0) && retries < 20) {
+        needsRetry = true;
+      }
+    }
+
+    if (needsRetry) {
+      setTimeout(function () {
+        applyCategoryFromUrl(retries + 1);
+      }, 250);
     }
   }
 

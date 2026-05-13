@@ -25,9 +25,10 @@ def _is_published_group(doc):
 
 def _build_slug(name):
     value = cstr(name or "").strip().lower()
-    # Keep URL slugs stable without relying on Frappe's scrub helper.
-    value = re.sub(r"[^a-z0-9]+", "_", value).strip("_")
-    return value.replace("_", "-")
+    # Keep URL slugs stable while preserving unicode letters (for Arabic category names).
+    value = re.sub(r"[^\w]+", "-", value, flags=re.UNICODE)
+    value = re.sub(r"[_-]+", "-", value).strip("-")
+    return value
 
 
 def get_published_item_groups(root_group=None):

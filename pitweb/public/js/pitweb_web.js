@@ -365,6 +365,85 @@
     return { total: cards.length, inspected: inspected, visible: visible };
   }
 
+  function getAllowedGroupSlugs(rootSlug) {
+    var normalizedRootSlug = String(rootSlug || "").trim().toLowerCase();
+    if (!normalizedRootSlug) {
+      return [];
+    }
+
+    var allowed = new Set([normalizedRootSlug]);
+    if (!pitNavData || !pitNavData.groups || !pitNavData.groups.length || !pitNavData.slug_to_group) {
+      return Array.from(allowed);
+    }
+
+    var rootName = pitNavData.slug_to_group[normalizedRootSlug];
+    if (!rootName) {
+      return Array.from(allowed);
+    }
+
+    var byParent = {};
+    pitNavData.groups.forEach(function (group) {
+      var parent = group.parent || "";
+      if (!byParent[parent]) {
+        byParent[parent] = [];
+      }
+      byParent[parent].push(group);
+    });
+
+    var queue = [rootName];
+    var seenNames = new Set();
+
+    while (queue.length) {
+      var current = queue.shift();
+      if (seenNames.has(current)) {
+        continue;
+      }
+
+      seenNames.add(current);
+      var children = byParent[current] || [];
+      children.forEach(function (child) {
+        var childSlug = String(child.slug || "").trim().toLowerCase();
+        if (childSlug) {
+          allowed.add(childSlug);
+        }
+        if (child.name && !seenNames.has(child.name)) {
+          queue.push(child.name);
+        }
+      });
+    }
+
+    return Array.from(allowed);
+  }
+
+  function filterCardsByAllowedSlugs(slugs, strict) {
+    var allowed = new Set(
+      (slugs || []).map(function (slug) {
+        return String(slug || "").trim().toLowerCase();
+      })
+    );
+
+    if (!allowed.size) {
+      return;
+    }
+
+    var cards = Array.prototype.slice.call(
+      document.querySelectorAll(".website-item-card, .product-card, .products-section .card")
+    );
+
+    cards.forEach(function (card) {
+      var link = card.querySelector('a[href*="/products/"]');
+      if (!link) {
+        card.style.display = strict ? "none" : "";
+        return;
+      }
+
+      var route = normalizeRoute(link.getAttribute("href") || "");
+      var routeTokens = route.split("/").filter(Boolean);
+      var cardSlug = routeTokens.length > 1 ? String(routeTokens[1]).toLowerCase() : "";
+      card.style.display = allowed.has(cardSlug) ? "" : "none";
+    });
+  }
+
   function filterByCategory(groupName, slug) {
     var filterSelect = document.querySelector(
       'select[name="item_group"], .item-group-filter select, select[data-fieldname="item_group"]'
@@ -865,7 +944,7 @@
     filterCardsByRoutes(routes, { strict: true });
 
     if (slug) {
-      filterCardsByGroupSlug(slug);
+      filterCardsByAllowedSlugs(getAllowedGroupSlugs(slug), true);
     }
   }
 

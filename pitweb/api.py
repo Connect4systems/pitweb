@@ -4,6 +4,22 @@ from pitweb.webshop import build_item_group_tree, get_published_item_groups
 from pitweb.webshop import get_group_descendants
 
 
+def _resolve_item_group(item_group=None, item_group_slug=None):
+    group_name = (item_group or "").strip()
+    group_slug = (item_group_slug or "").strip().lower()
+
+    if group_name and frappe.db.exists("Item Group", group_name):
+        return group_name
+
+    if group_slug:
+        groups = get_published_item_groups()
+        for row in groups:
+            if str(row.get("slug") or "").lower() == group_slug:
+                return row.get("name")
+
+    return group_name or None
+
+
 @frappe.whitelist(allow_guest=True)
 def health_check():
     # Smoke-check endpoint used to verify API/module import health after deploy.
@@ -100,7 +116,7 @@ def get_arabic_content_for_routes(routes=None):
 
 
 @frappe.whitelist(allow_guest=True)
-def search_webshop_items(query=None, item_group=None, limit=200):
+def search_webshop_items(query=None, item_group=None, item_group_slug=None, limit=200):
     query = (query or "").strip()
     if not query:
         return {"routes": []}
@@ -128,12 +144,14 @@ def search_webshop_items(query=None, item_group=None, limit=200):
         "limit": limit,
     }
 
-    item_group = (item_group or "").strip()
+    item_group = _resolve_item_group(item_group=item_group, item_group_slug=item_group_slug)
     if item_group:
         groups = get_group_descendants(item_group)
-        if groups:
-            where_parts.append("i.item_group IN %(groups)s")
-            values["groups"] = tuple(groups)
+        if not groups:
+            return {"routes": []}
+
+        where_parts.append("i.item_group IN %(groups)s")
+        values["groups"] = tuple(groups)
 
     rows = frappe.db.sql(
         f"""
@@ -153,18 +171,20 @@ def search_webshop_items(query=None, item_group=None, limit=200):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_webshop_item_routes(item_group=None, limit=5000):
+def get_webshop_item_routes(item_group=None, item_group_slug=None, limit=5000):
     limit = max(1, min(frappe.utils.cint(limit) or 5000, 5000))
 
     where_parts = ["wi.published = 1"]
     values = {"limit": limit}
 
-    item_group = (item_group or "").strip()
+    item_group = _resolve_item_group(item_group=item_group, item_group_slug=item_group_slug)
     if item_group:
         groups = get_group_descendants(item_group)
-        if groups:
-            where_parts.append("i.item_group IN %(groups)s")
-            values["groups"] = tuple(groups)
+        if not groups:
+            return {"routes": []}
+
+        where_parts.append("i.item_group IN %(groups)s")
+        values["groups"] = tuple(groups)
 
     rows = frappe.db.sql(
         f"""

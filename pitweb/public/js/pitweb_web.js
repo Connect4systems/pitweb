@@ -755,6 +755,7 @@
   async function runProductSearch(searchText) {
     var text = String(searchText || "").trim();
     var activeGroup = getActiveGroupName();
+    var activeSlug = (getCurrentCategorySlug() || "").trim();
 
     if (!text) {
       filterCardsByRoutes([]);
@@ -767,6 +768,7 @@
     var result = await callApi("pitweb.api.search_webshop_items", {
       query: text,
       item_group: activeGroup,
+      item_group_slug: activeSlug,
       limit: 500,
     });
 
@@ -852,6 +854,7 @@
 
     var result = await callApi("pitweb.api.get_webshop_item_routes", {
       item_group: groupName,
+      item_group_slug: slug,
       limit: 5000,
     });
 

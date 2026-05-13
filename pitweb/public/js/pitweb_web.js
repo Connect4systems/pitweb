@@ -4,7 +4,7 @@
   var pitThemeSettings = null;
   var pitNavData = null;
   var pitCategoryObserver = null;
-  var PRODUCT_CARD_SELECTOR = ".website-item-card, .product-card, .products-section .card, .item-card, .products-list .card";
+  var PRODUCT_CARD_SELECTOR = ".website-item-card, .product-card, .products-section .card, .item-card";
 
   function onReady(fn) {
     if (document.readyState === "loading") {
@@ -302,6 +302,24 @@
     );
   }
 
+  function getCardVisibilityTarget(card) {
+    if (!card) {
+      return card;
+    }
+
+    var wrapper = card.closest(".item-card");
+    return wrapper || card;
+  }
+
+  function setCardVisible(card, visible) {
+    var target = getCardVisibilityTarget(card);
+    if (!target) {
+      return;
+    }
+
+    target.style.display = visible ? "" : "none";
+  }
+
   function resolveCardGroupSlug(card) {
     var link = getCardLinkElement(card);
     if (link) {
@@ -424,7 +442,7 @@
 
       inspected += 1;
       var isVisible = cardSlug === normalizedSlug;
-      card.style.display = isVisible ? "" : "none";
+      setCardVisible(card, isVisible);
       if (isVisible) {
         visible += 1;
       }
@@ -499,11 +517,11 @@
     cards.forEach(function (card) {
       var cardSlug = resolveCardGroupSlug(card);
       if (!cardSlug) {
-        card.style.display = strict ? "none" : "";
+        setCardVisible(card, !strict);
         return;
       }
 
-      card.style.display = allowed.has(cardSlug) ? "" : "none";
+      setCardVisible(card, allowed.has(cardSlug));
     });
   }
 
@@ -886,7 +904,7 @@
     getProductCards().forEach(function (card) {
       var route = normalizeRoute(card.getAttribute("data-pit-route") || "");
       var visible = !hasConstraint || allowed.has(route);
-      card.style.display = visible ? "" : "none";
+      setCardVisible(card, visible);
       if (visible) {
         visibleCount += 1;
       }

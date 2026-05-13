@@ -3,6 +3,7 @@
 
   var pitThemeSettings = null;
   var pitNavData = null;
+  var pitCategoryObserver = null;
   var PRODUCT_CARD_SELECTOR = ".website-item-card, .product-card, .products-section .card, .item-card, .products-list .card";
 
   function onReady(fn) {
@@ -987,7 +988,7 @@
       return !!getCardLinkElement(card);
     });
 
-    if ((cards.length === 0 || linkedCards.length === 0) && retries < 20) {
+    if ((cards.length === 0 || linkedCards.length === 0) && retries < 60) {
       setTimeout(function () {
         applyStrictCategoryFilterFromUrl(retries + 1);
       }, 250);
@@ -1006,6 +1007,57 @@
     if (slug) {
       filterCardsByAllowedSlugs(getAllowedGroupSlugs(slug), true);
     }
+  }
+
+  function watchProductListChanges() {
+    if (!isProductsPage()) {
+      return;
+    }
+
+    var url = new URL(window.location.href);
+    var hasCategoryConstraint =
+      String(url.searchParams.get("item_group") || "").trim() ||
+      String(url.searchParams.get("pit_group_slug") || "").trim();
+
+    if (!hasCategoryConstraint) {
+      return;
+    }
+
+    var host =
+      document.querySelector(".products-list") ||
+      document.querySelector(".item-card-group-section") ||
+      document.querySelector(".pit-products-body") ||
+      document.querySelector("main");
+
+    if (!host) {
+      return;
+    }
+
+    if (pitCategoryObserver) {
+      pitCategoryObserver.disconnect();
+      pitCategoryObserver = null;
+    }
+
+    var rerunTimer = null;
+    var rerunFilter = function () {
+      if (rerunTimer) {
+        clearTimeout(rerunTimer);
+      }
+
+      rerunTimer = setTimeout(function () {
+        applyStrictCategoryFilterFromUrl(0);
+      }, 120);
+    };
+
+    pitCategoryObserver = new MutationObserver(function () {
+      rerunFilter();
+    });
+
+    pitCategoryObserver.observe(host, {
+      childList: true,
+      subtree: true,
+      attributes: false,
+    });
   }
 
   async function initializeWebshopUX() {
@@ -1034,6 +1086,7 @@
       applyArabicCardContent();
       applyCategoryFromUrl(0);
       applyStrictCategoryFilterFromUrl(0);
+      watchProductListChanges();
       applyInitialSearch();
 
       var currentSlug = getCurrentCategorySlug();

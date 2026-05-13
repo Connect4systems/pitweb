@@ -320,6 +320,74 @@
     target.style.display = visible ? "" : "none";
   }
 
+  function getSlugFromUrl() {
+    var slug = String(new URL(window.location.href).searchParams.get("pit_group_slug") || "").trim().toLowerCase();
+    return slug || null;
+  }
+
+  function getAllowedSlugsFromSidebar(rootSlug) {
+    var allowed = new Set();
+    var normalizedRoot = String(rootSlug || "").trim().toLowerCase();
+    if (!normalizedRoot) {
+      return allowed;
+    }
+
+    allowed.add(normalizedRoot);
+    var links = Array.prototype.slice.call(document.querySelectorAll('.pit-category-sidebar a[href^="/products/"]'));
+    links.forEach(function (link) {
+      var href = String(link.getAttribute("href") || "").trim().toLowerCase();
+      if (!href) {
+        return;
+      }
+
+      var slug = href.replace(/^\/products\//, "").replace(/\/+$/, "");
+      if (slug) {
+        allowed.add(slug);
+      }
+    });
+
+    return allowed;
+  }
+
+  function applySlugFallbackFilter() {
+    if (!isProductsPage()) {
+      return;
+    }
+
+    var rootSlug = getSlugFromUrl();
+    if (!rootSlug) {
+      return;
+    }
+
+    var allowed = getAllowedSlugsFromSidebar(rootSlug);
+    if (!allowed.size) {
+      allowed.add(rootSlug);
+    }
+
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".item-card"));
+    if (!cards.length) {
+      return;
+    }
+
+    cards.forEach(function (card) {
+      var slug = resolveCardGroupSlug(card);
+      setCardVisible(card, allowed.has(String(slug || "").toLowerCase()));
+    });
+  }
+
+  function scheduleSlugFallbackFilter() {
+    if (!isProductsPage()) {
+      return;
+    }
+
+    var steps = [100, 400, 1000, 1800, 2800, 4200];
+    steps.forEach(function (ms) {
+      setTimeout(function () {
+        applySlugFallbackFilter();
+      }, ms);
+    });
+  }
+
   function resolveCardGroupSlug(card) {
     var link = getCardLinkElement(card);
     if (link) {
@@ -1106,6 +1174,7 @@
       applyStrictCategoryFilterFromUrl(0);
       watchProductListChanges();
       applyInitialSearch();
+      scheduleSlugFallbackFilter();
 
       var currentSlug = getCurrentCategorySlug();
       if (currentSlug) {
@@ -1118,5 +1187,6 @@
 
   onReady(function () {
     initializeWebshopUX();
+    scheduleSlugFallbackFilter();
   });
 })();

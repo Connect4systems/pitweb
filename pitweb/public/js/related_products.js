@@ -1,6 +1,7 @@
 frappe.ready(function () {
     const WHATSAPP_NUMBER = "201507447504";
     let stockVisibilitySyncScheduled = false;
+    let autoNextInProgress = false;
 
     function isProductsRoute() {
         const path = window.location.pathname || "";
@@ -175,8 +176,37 @@ frappe.ready(function () {
                         setProductNodeVisibility(node, visible);
                     });
                 });
+
+                // If the current page becomes empty after stock filtering,
+                // move to the next page (if available) to avoid a blank first page.
+                if (showOnlyAvailable) {
+                    maybeAutoAdvanceToNextPage();
+                }
             },
         });
+    }
+
+    function maybeAutoAdvanceToNextPage() {
+        if (autoNextInProgress) return;
+
+        const allItemCards = Array.from(document.querySelectorAll(".item-card"));
+        if (!allItemCards.length) return;
+
+        const visibleCards = allItemCards.filter(function (node) {
+            return node.style.display !== "none";
+        });
+
+        if (visibleCards.length > 0) return;
+
+        const nextButton = document.querySelector("button.btn-next:not([disabled])");
+        if (!nextButton) return;
+
+        autoNextInProgress = true;
+        nextButton.click();
+
+        setTimeout(function () {
+            autoNextInProgress = false;
+        }, 1800);
     }
 
     function scheduleListingStockVisibilitySync() {

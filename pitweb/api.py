@@ -1,169 +1,178 @@
 import frappe
-
-from pitweb.webshop import build_item_group_tree, get_published_item_groups
-from pitweb.webshop import get_group_descendants
+from frappe.utils import flt, cint
 
 
-def _resolve_item_group(item_group=None, item_group_slug=None):
-    group_name = (item_group or "").strip()
-    group_slug = (item_group_slug or "").strip().lower()
-
-    if group_name and frappe.db.exists("Item Group", group_name):
-        return group_name
-
-    if group_name:
-        matched_name = frappe.db.get_value("Item Group", {"item_group_name": group_name}, "name")
-        if matched_name:
-            return matched_name
-
-    if group_slug:
-        groups = get_published_item_groups()
-        for row in groups:
-            if str(row.get("slug") or "").lower() == group_slug:
-                return row.get("name")
-
-    return group_name or None
-
-
-@frappe.whitelist(allow_guest=True)
-def health_check():
-    # Smoke-check endpoint used to verify API/module import health after deploy.
-    return {"ok": True, "app": "pitweb", "module": "pitweb.api"}
-
-
-@frappe.whitelist(allow_guest=True)
-def get_webshop_theme_settings():
-    settings = None
-    brand_image = None
-    try:
-        settings = frappe.get_single("PIT Webshop Settings")
-    except Exception:
-        # Keep storefront usable even if DocType sync is temporarily broken.
-        settings = None
-
-    try:
-        if frappe.db.has_column("Website Settings", "brand_image"):
-            brand_image = frappe.db.get_single_value("Website Settings", "brand_image")
-        elif frappe.db.has_column("Website Settings", "banner_image"):
-            brand_image = frappe.db.get_single_value("Website Settings", "banner_image")
-    except Exception:
-        brand_image = None
-
-    return {
-        "primary_color": (settings.primary_color if settings else None) or "#d71920",
-        "dark_text_color": (settings.dark_text_color if settings else None) or "#1f1f1f",
-        "light_background_color": (settings.light_background_color if settings else None) or "#f7f7f7",
-        "card_background_color": (settings.card_background_color if settings else None) or "#ffffff",
-        "border_color": (settings.border_color if settings else None) or "#e5e5e5",
-        "base_font_family": (settings.base_font_family if settings else None) or "Poppins, sans-serif",
-        "arabic_font_family": (settings.arabic_font_family if settings else None) or "Cairo, sans-serif",
-        "base_font_url": settings.base_font_url if settings else None,
-        "arabic_font_url": settings.arabic_font_url if settings else None,
-        "facebook_url": (settings.facebook_url if settings else None) or "https://facebook.com",
-        "youtube_url": (settings.youtube_url if settings else None) or "https://youtube.com",
-        "tiktok_url": (settings.tiktok_url if settings else None) or "https://tiktok.com",
-        "brand_image": brand_image,
-    }
-
-
-@frappe.whitelist(allow_guest=True)
-def get_webshop_navigation():
-    groups = get_published_item_groups()
-    by_slug = {row["slug"]: row["name"] for row in groups}
-
-    return {
-        "groups": groups,
-        "tree": build_item_group_tree(),
-        "slug_to_group": by_slug,
-    }
-
-
-@frappe.whitelist(allow_guest=True)
-def get_arabic_content_for_routes(routes=None):
-    routes = frappe.parse_json(routes) if routes else []
-    if isinstance(routes, str):
-        routes = [routes]
-
-    routes = [route for route in routes if route]
-    if not routes:
-        return {}
-
-    has_ar_name = frappe.db.has_column("Item", "custom_arabic_name")
-    has_ar_desc = frappe.db.has_column("Item", "custom_arabic_description")
-
-    ar_name_expr = "i.custom_arabic_name" if has_ar_name else "NULL"
-    ar_desc_expr = "i.custom_arabic_description" if has_ar_desc else "NULL"
-
-    rows = frappe.db.sql(
-        f"""
-        SELECT
-            wi.route,
-            i.item_name,
-            i.description,
-            {ar_name_expr} AS custom_arabic_name,
-            {ar_desc_expr} AS custom_arabic_description
-        FROM `tabWebsite Item` wi
-        INNER JOIN `tabItem` i ON i.name = wi.item_code
-        WHERE wi.route IN %(routes)s
-        """,
-        {"routes": tuple(routes)},
-        as_dict=True,
+def get_website_stock_settings():
+    website_warehouse = frappe.db.get_single_value(
+        "Website Settings",
+        "custom_website_stock_warehouse"
     )
 
-    out = {}
-    for row in rows:
-        out[row.route] = {
-            "name": row.custom_arabic_name or row.item_name,
-            "description": row.custom_arabic_description or row.description,
-        }
+    show_only_available = cint(
+        frappe.db.get_single_value(
+            "Website Settings",
+            "custom_show_only_available_stock_products"
+        )
+    )
 
-    return out
+    return website_warehouse, show_only_available
+
+
+def get_item_stock_qty(item_code, warehouse=None):
+    if warehouse:
+        return flt(
+            frappe.db.get_value(
+                "Bin",
+                {
+                    "item_code": item_code,
+                    "warehouse": warehouse
+                },
+                "actual_qty"
+            )
+        )
+
+    qty = frappe.db.sql(
+        """
+        SELECT COALESCE(SUM(actual_qty), 0)
+        FROM `tabBin`
+        WHERE item_code = %s
+        """,
+        item_code
+    )
+
+    return flt(qty[0][0]) if qty else 0
+
+
+def get_item_price(item_code):
+    rate = frappe.db.sql(
+        """
+        SELECT price_list_rate
+        FROM `tabItem Price`
+        WHERE
+            item_code = %s
+            AND selling = 1
+            AND IFNULL(price_list_rate, 0) > 0
+        ORDER BY valid_from DESC, modified DESC
+        LIMIT 1
+        """,
+        item_code
+    )
+
+    return flt(rate[0][0]) if rate else 0
+    rate = frappe.db.sql(
+        """
+        SELECT price_list_rate
+        FROM `tabItem Price`
+        WHERE
+            item_code = %s
+            AND price_list = 'Standard Selling'
+            AND selling = 1
+        ORDER BY modified DESC
+        LIMIT 1
+        """,
+        item_code
+    )
+
+    return flt(rate[0][0]) if rate else 0
 
 
 @frappe.whitelist(allow_guest=True)
-def search_webshop_items(query=None, item_group=None, item_group_slug=None, limit=200):
-    query = (query or "").strip()
-    if not query:
-        return {"routes": []}
+def get_product_page_info(item_code=None, route=None):
+    if not item_code and route:
+        route = route.strip("/")
+        item_code = frappe.db.get_value(
+            "Website Item",
+            {"route": route},
+            "item_code"
+        )
 
-    limit = max(1, min(frappe.utils.cint(limit) or 200, 500))
+    if not item_code:
+        return {}
 
-    has_ar_name = frappe.db.has_column("Item", "custom_arabic_name")
-    has_ar_desc = frappe.db.has_column("Item", "custom_arabic_description")
+    website_warehouse, show_only_available = get_website_stock_settings()
 
-    ar_name_expr = "COALESCE(i.custom_arabic_name, '')" if has_ar_name else "''"
-    ar_desc_expr = "COALESCE(i.custom_arabic_description, '')" if has_ar_desc else "''"
+    actual_qty = get_item_stock_qty(item_code, website_warehouse)
+    price_list_rate = get_item_price(item_code)
 
-    where_parts = [
-        "wi.published = 1",
-        "("
-        "LOWER(COALESCE(i.item_name, '')) LIKE %(pattern)s OR "
-        "LOWER(COALESCE(i.description, '')) LIKE %(pattern)s OR "
-        f"LOWER({ar_name_expr}) LIKE %(pattern)s OR "
-        f"LOWER({ar_desc_expr}) LIKE %(pattern)s"
-        ")",
-    ]
+    return {
+        "item_code": item_code,
+        "actual_qty": actual_qty,
+        "in_stock": actual_qty > 0,
+        "show_only_available": show_only_available,
+        "price_list_rate": price_list_rate,
+        "price_display": f"{price_list_rate:,.2f} LE" if price_list_rate > 0 else ""
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_related_products(item_code=None, route=None, limit=20):
+    limit = int(limit or 20)
+
+    if not item_code and route:
+        route = route.strip("/")
+        item_code = frappe.db.get_value(
+            "Website Item",
+            {"route": route},
+            "item_code"
+        )
+
+    if not item_code:
+        return []
+
+    item_group = frappe.db.get_value("Item", item_code, "item_group")
+
+    if not item_group:
+        return []
+
+    website_warehouse, show_only_available = get_website_stock_settings()
+
+    warehouse_condition = ""
+    having_condition = ""
 
     values = {
-        "pattern": f"%{query.lower()}%",
+        "item_code": item_code,
+        "item_group": item_group,
         "limit": limit,
     }
 
-    item_group = _resolve_item_group(item_group=item_group, item_group_slug=item_group_slug)
-    if item_group:
-        groups = get_group_descendants(item_group)
-        if not groups:
-            return {"routes": []}
+    if website_warehouse:
+        warehouse_condition = "AND bin.warehouse = %(website_warehouse)s"
+        values["website_warehouse"] = website_warehouse
 
-        where_parts.append("i.item_group IN %(groups)s")
-        values["groups"] = tuple(groups)
+    if show_only_available:
+        having_condition = "HAVING actual_qty > 0"
 
-    rows = frappe.db.sql(
+    products = frappe.db.sql(
         f"""
-        SELECT wi.route
+        SELECT
+            wi.item_code,
+            wi.web_item_name,
+            wi.route,
+            wi.website_image,
+            i.item_group,
+            MAX(ip.price_list_rate) AS price_list_rate,
+            COALESCE(SUM(bin.actual_qty), 0) AS actual_qty
         FROM `tabWebsite Item` wi
         INNER JOIN `tabItem` i ON i.name = wi.item_code
-        WHERE {' AND '.join(where_parts)}
+        LEFT JOIN `tabItem Price` ip
+            ON ip.item_code = wi.item_code
+            AND ip.price_list = 'Standard Selling'
+            AND ip.selling = 1
+        LEFT JOIN `tabBin` bin
+            ON bin.item_code = wi.item_code
+            {warehouse_condition}
+        WHERE
+            wi.published = 1
+            AND wi.item_code != %(item_code)s
+            AND i.item_group = %(item_group)s
+            AND i.disabled = 0
+        GROUP BY
+            wi.item_code,
+            wi.web_item_name,
+            wi.route,
+            wi.website_image,
+            i.item_group
+        {having_condition}
         ORDER BY wi.modified DESC
         LIMIT %(limit)s
         """,
@@ -171,38 +180,9 @@ def search_webshop_items(query=None, item_group=None, item_group_slug=None, limi
         as_dict=True,
     )
 
-    routes = [row.route for row in rows if row.get("route")]
-    return {"routes": routes}
+    for product in products:
+        product.price_display = ""
+        if flt(product.price_list_rate) > 0:
+            product.price_display = f"{flt(product.price_list_rate):,.2f} LE"
 
-
-@frappe.whitelist(allow_guest=True)
-def get_webshop_item_routes(item_group=None, item_group_slug=None, limit=5000):
-    limit = max(1, min(frappe.utils.cint(limit) or 5000, 5000))
-
-    where_parts = ["wi.published = 1"]
-    values = {"limit": limit}
-
-    item_group = _resolve_item_group(item_group=item_group, item_group_slug=item_group_slug)
-    if item_group:
-        groups = get_group_descendants(item_group)
-        if not groups:
-            return {"routes": []}
-
-        where_parts.append("i.item_group IN %(groups)s")
-        values["groups"] = tuple(groups)
-
-    rows = frappe.db.sql(
-        f"""
-        SELECT wi.route
-        FROM `tabWebsite Item` wi
-        INNER JOIN `tabItem` i ON i.name = wi.item_code
-        WHERE {' AND '.join(where_parts)}
-        ORDER BY wi.modified DESC
-        LIMIT %(limit)s
-        """,
-        values,
-        as_dict=True,
-    )
-
-    routes = [row.route for row in rows if row.get("route")]
-    return {"routes": routes}
+    return products

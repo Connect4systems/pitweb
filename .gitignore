@@ -1,9 +1,7 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.swp
 .DS_Store
-.env
-.venv/
-node_modules/
+*.pyc
+*.egg-info
+*.swp
+tags
+node_modules
+__pycache__

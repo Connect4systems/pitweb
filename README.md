@@ -1,16 +1,41 @@
-# Pitweb
+### PitWeb
 
-Pitweb is a custom app scaffold for ERPNext/Frappe v15.
+Website App
 
-## Install in an existing bench
+### Installation
 
-1. Get the app into your bench apps directory:
-   - `bench get-app /path/to/pitweb`
-2. Install on a site:
-   - `bench --site your-site-name install-app pitweb`
-3. Migrate:
-   - `bench --site your-site-name migrate`
+You can install this app using the [bench](https://github.com/frappe/bench) CLI:
 
-## Development
+```bash
+cd $PATH_TO_YOUR_BENCH
+bench get-app $URL_OF_THIS_REPO --branch develop
+bench install-app pitweb
+```
 
-This repository contains the minimum required files for a Frappe v15 app package.
+### Contributing
+
+This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
+
+```bash
+cd apps/pitweb
+pre-commit install
+```
+
+Pre-commit is configured to use the following tools for checking and formatting your code:
+
+- ruff
+- eslint
+- prettier
+- pyupgrade
+
+### CI
+
+This app can use GitHub Actions for CI. The following workflows are configured:
+
+- CI: Installs this app and runs unit tests on every push to `develop` branch.
+- Linters: Runs [Frappe Semgrep Rules](https://github.com/frappe/semgrep-rules) and [pip-audit](https://pypi.org/project/pip-audit/) on every pull request.
+
+
+### License
+
+mit

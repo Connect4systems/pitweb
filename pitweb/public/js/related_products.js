@@ -103,4 +103,37 @@ if (productPageContent.length) {
     }
 
     renderRelatedProducts();
+
+    function removeAppItemGroupFilterOption() {
+        if (!window.location.pathname.includes("/products")) return;
+
+        const normalize = function (text) {
+            return (text || "").trim().toLowerCase();
+        };
+
+        const removeMatchingOption = function () {
+            $("label, .form-check, .checkbox").each(function () {
+                const text = normalize($(this).text());
+                if (text === "app") {
+                    $(this).remove();
+                }
+            });
+        };
+
+        removeMatchingOption();
+
+        const container = document.querySelector("body");
+        if (!container || typeof MutationObserver === "undefined") return;
+
+        const observer = new MutationObserver(function () {
+            removeMatchingOption();
+        });
+
+        observer.observe(container, {
+            childList: true,
+            subtree: true,
+        });
+    }
+
+    removeAppItemGroupFilterOption();
 });

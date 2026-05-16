@@ -38,6 +38,37 @@ frappe.ready(function () {
         }
     }
 
+    function hideSubCategoryBlueChips() {
+        if (!isProductsRoute()) return;
+
+        const hideChips = function () {
+            // Keep product detail pages untouched.
+            if (document.querySelector(".product-page-content")) return;
+
+            document
+                .querySelectorAll(".sub-category-container.scroll-categories")
+                .forEach(function (node) {
+                    node.style.display = "none";
+                });
+        };
+
+        hideChips();
+        [300, 800, 1500, 3000].forEach(function (ms) {
+            setTimeout(hideChips, ms);
+        });
+
+        if (typeof MutationObserver !== "undefined") {
+            const observer = new MutationObserver(function () {
+                hideChips();
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+            });
+        }
+    }
+
 
     function renderRelatedProducts() {
         if (!window.location.pathname.includes("/products/")) return;
@@ -142,4 +173,5 @@ if (productPageContent.length) {
 
     renderRelatedProducts();
     forceProductGridView();
+    hideSubCategoryBlueChips();
 });

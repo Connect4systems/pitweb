@@ -11,9 +11,6 @@ frappe.ready(function () {
                 limit: 30
             },
             callback: function (r) {
-                $(".c4-product-price").remove();
-                $(".c4-product-actions").remove();
-
                 if (!r.message || !r.message.length) return;
 
                 $(".c4-related-products-section").remove();
@@ -82,6 +79,7 @@ if (productPageContent.length) {
 }
 
                 let scrollBox = document.getElementById("c4-related-scroll");
+                if (!scrollBox) return;
 
                 $(".c4-related-next").on("click", function () {
                     scrollBox.scrollBy({ left: 250, behavior: "smooth" });
@@ -105,42 +103,4 @@ if (productPageContent.length) {
     }
 
     renderRelatedProducts();
-
-
-    function fixStandardProductPriceAndImage() {
-    if (!window.location.pathname.includes("/products/")) return;
-
-    frappe.call({
-        method: "pitweb.api.get_product_page_info",
-        args: {
-            route: window.location.pathname
-        },
-        callback: function (r) {
-            if (!r.message || !r.message.price_display) return;
-
-            let priceText = r.message.price_display.replace(" LE", "");
-
-            let priceNode = $("body").find("*").filter(function () {
-                let t = $(this).clone().children().remove().end().text().trim();
-                return /^[0-9,]+\.[0-9]{2}$/.test(t);
-            }).first();
-
-            if (priceNode.length) {
-                priceNode.text(priceText);
-            }
-        }
-    });
-
-    $("img[itemprop='image'], .item-card img").css({
-        "max-width": "100%",
-        "max-height": "520px",
-        "width": "auto",
-        "height": "auto",
-        "object-fit": "contain",
-        "display": "block",
-        "margin": "0 auto"
-    });
-}
-
-fixStandardProductPriceAndImage();
 });

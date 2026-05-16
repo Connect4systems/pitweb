@@ -249,9 +249,9 @@ app_license = "mit"
 
 # Website Assets
 web_include_js = [
-    "/assets/pitweb/js/related_products.js"
+	"/assets/pitweb/js/related_products.js"
 ]
 
 web_include_css = [
-    "/assets/pitweb/css/related_products.css"
+	"/assets/pitweb/css/related_products.css"
 ]

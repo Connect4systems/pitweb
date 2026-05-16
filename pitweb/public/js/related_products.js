@@ -1,6 +1,43 @@
 frappe.ready(function () {
     const WHATSAPP_NUMBER = "201507447504";
 
+    function isProductsRoute() {
+        const path = window.location.pathname || "";
+        return path.includes("/products") || path.includes("/all-products");
+    }
+
+    function forceProductGridView() {
+        if (!isProductsRoute()) return;
+
+        const applyGrid = function () {
+            const gridBtn = document.querySelector(".btn-grid-view");
+            const listBtn = document.querySelector(".btn-list-view");
+
+            if (!gridBtn) return;
+
+            // If list is currently active, switch back to standard card/grid view.
+            if (listBtn && listBtn.classList.contains("btn-primary")) {
+                gridBtn.click();
+            }
+        };
+
+        applyGrid();
+        [300, 800, 1500, 3000].forEach(function (ms) {
+            setTimeout(applyGrid, ms);
+        });
+
+        if (typeof MutationObserver !== "undefined") {
+            const observer = new MutationObserver(function () {
+                applyGrid();
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+            });
+        }
+    }
+
     function renderRelatedProducts() {
         if (!window.location.pathname.includes("/products/")) return;
 
@@ -103,37 +140,5 @@ if (productPageContent.length) {
     }
 
     renderRelatedProducts();
-
-    function removeAppItemGroupFilterOption() {
-        if (!window.location.pathname.includes("/products")) return;
-
-        const normalize = function (text) {
-            return (text || "").trim().toLowerCase();
-        };
-
-        const removeMatchingOption = function () {
-            $("label, .form-check, .checkbox").each(function () {
-                const text = normalize($(this).text());
-                if (text === "app") {
-                    $(this).remove();
-                }
-            });
-        };
-
-        removeMatchingOption();
-
-        const container = document.querySelector("body");
-        if (!container || typeof MutationObserver === "undefined") return;
-
-        const observer = new MutationObserver(function () {
-            removeMatchingOption();
-        });
-
-        observer.observe(container, {
-            childList: true,
-            subtree: true,
-        });
-    }
-
-    removeAppItemGroupFilterOption();
+    forceProductGridView();
 });

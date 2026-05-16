@@ -38,6 +38,46 @@ frappe.ready(function () {
         }
     }
 
+    function moveSubCategoriesIntoFilters() {
+        if (!isProductsRoute()) return;
+
+        const moveSubCategories = function () {
+            const filtersBox = document.querySelector("#product-filters");
+            const categoryBox = document.querySelector(".sub-category-container.scroll-categories");
+
+            if (!filtersBox || !categoryBox) return;
+
+            filtersBox.appendChild(categoryBox);
+            categoryBox.classList.add("pit-left-category-filter");
+
+            categoryBox.querySelectorAll("a").forEach(function (link) {
+                link.style.pointerEvents = "auto";
+                link.style.cursor = "pointer";
+                link.style.textDecoration = "none";
+            });
+
+            categoryBox.querySelectorAll(".category-pill").forEach(function (pill) {
+                pill.style.pointerEvents = "none";
+            });
+        };
+
+        moveSubCategories();
+        [500, 1500, 3000].forEach(function (ms) {
+            setTimeout(moveSubCategories, ms);
+        });
+
+        if (typeof MutationObserver !== "undefined") {
+            const observer = new MutationObserver(function () {
+                moveSubCategories();
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+            });
+        }
+    }
+
     function renderRelatedProducts() {
         if (!window.location.pathname.includes("/products/")) return;
 
@@ -141,4 +181,5 @@ if (productPageContent.length) {
 
     renderRelatedProducts();
     forceProductGridView();
+    moveSubCategoriesIntoFilters();
 });

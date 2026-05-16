@@ -1,5 +1,6 @@
 frappe.ready(function () {
     const WHATSAPP_NUMBER = "201507447504";
+    let stockVisibilitySyncScheduled = false;
 
     function isProductsRoute() {
         const path = window.location.pathname || "";
@@ -60,6 +61,145 @@ frappe.ready(function () {
         if (typeof MutationObserver !== "undefined") {
             const observer = new MutationObserver(function () {
                 hideChips();
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+            });
+        }
+    }
+
+    function isProductListingPage() {
+        if (!isProductsRoute()) return false;
+
+        // Do not run stock filtering on the product detail page.
+        if (document.querySelector(".product-page-content")) return false;
+
+        return true;
+    }
+
+    function normalizeRoute(pathOrUrl) {
+        if (!pathOrUrl) return "";
+
+        let pathname = "";
+        try {
+            pathname = new URL(pathOrUrl, window.location.origin).pathname || "";
+        } catch (e) {
+            pathname = pathOrUrl;
+        }
+
+        pathname = String(pathname).split("?", 1)[0].split("#", 1)[0];
+        if (!pathname) return "";
+
+        return "/" + pathname.replace(/^\/+|\/+$/g, "");
+    }
+
+    function getProductNode(anchor) {
+        if (!anchor) return null;
+
+        return (
+            anchor.closest(".product-card") ||
+            anchor.closest(".product-list-link") ||
+            anchor.closest(".item-card") ||
+            anchor.closest(".product") ||
+            anchor.closest(".card") ||
+            anchor
+        );
+    }
+
+    function getListingProductNodesByRoute() {
+        const routeNodes = {};
+        const selectors = [
+            "a.product-link[href*='/products/']",
+            "a.product-list-link[href*='/products/']",
+            ".product-card a[href*='/products/']",
+            ".item-card a[href*='/products/']",
+            ".product a[href*='/products/']",
+        ];
+
+        const anchors = document.querySelectorAll(selectors.join(","));
+
+        anchors.forEach(function (anchor) {
+            const route = normalizeRoute(anchor.getAttribute("href"));
+            if (!route || !route.startsWith("/products/")) return;
+
+            const node = getProductNode(anchor);
+            if (!node) return;
+
+            if (!routeNodes[route]) {
+                routeNodes[route] = [];
+            }
+
+            routeNodes[route].push(node);
+        });
+
+        return routeNodes;
+    }
+
+    function setProductNodeVisibility(node, visible) {
+        if (!node) return;
+
+        if (visible) {
+            node.style.removeProperty("display");
+            return;
+        }
+
+        node.style.display = "none";
+    }
+
+    function applyListingStockVisibility() {
+        if (!isProductListingPage()) return;
+
+        const routeNodes = getListingProductNodesByRoute();
+        const routes = Object.keys(routeNodes);
+
+        if (!routes.length) return;
+
+        frappe.call({
+            method: "pitweb.api.get_website_items_stock_by_route",
+            args: {
+                routes: routes,
+            },
+            callback: function (r) {
+                const payload = r && r.message ? r.message : {};
+                const showOnlyAvailable = Boolean(payload.show_only_available);
+                const items = payload.items || {};
+
+                routes.forEach(function (route) {
+                    const info = items[route] || {};
+                    const inStock = Boolean(info.in_stock);
+                    const visible = !showOnlyAvailable || inStock;
+
+                    (routeNodes[route] || []).forEach(function (node) {
+                        setProductNodeVisibility(node, visible);
+                    });
+                });
+            },
+        });
+    }
+
+    function scheduleListingStockVisibilitySync() {
+        if (stockVisibilitySyncScheduled) return;
+
+        stockVisibilitySyncScheduled = true;
+        setTimeout(function () {
+            stockVisibilitySyncScheduled = false;
+            applyListingStockVisibility();
+        }, 120);
+    }
+
+    function setupListingStockVisibilityWatcher() {
+        if (!isProductListingPage()) return;
+
+        scheduleListingStockVisibilitySync();
+        [300, 800, 1500, 3000].forEach(function (ms) {
+            setTimeout(scheduleListingStockVisibilitySync, ms);
+        });
+
+        if (typeof MutationObserver !== "undefined") {
+            const observer = new MutationObserver(function () {
+                scheduleListingStockVisibilitySync();
             });
 
             observer.observe(document.body, {
@@ -174,4 +314,5 @@ if (productPageContent.length) {
     renderRelatedProducts();
     forceProductGridView();
     hideSubCategoryBlueChips();
+    setupListingStockVisibilityWatcher();
 });

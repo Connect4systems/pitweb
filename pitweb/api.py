@@ -59,21 +59,65 @@ def get_item_price(item_code):
     )
 
     return flt(rate[0][0]) if rate else 0
-    rate = frappe.db.sql(
-        """
-        SELECT price_list_rate
-        FROM `tabItem Price`
-        WHERE
-            item_code = %s
-            AND price_list = 'Standard Selling'
-            AND selling = 1
-        ORDER BY modified DESC
-        LIMIT 1
-        """,
-        item_code
+
+
+def _normalize_routes(routes):
+    normalized_routes = []
+
+    for route in routes or []:
+        if not route:
+            continue
+
+        clean_route = str(route).strip()
+        if not clean_route:
+            continue
+
+        clean_route = clean_route.split("?", 1)[0].split("#", 1)[0].strip("/")
+        if clean_route:
+            normalized_routes.append(clean_route)
+
+    # Preserve order while removing duplicates.
+    return list(dict.fromkeys(normalized_routes))
+
+
+@frappe.whitelist(allow_guest=True)
+def get_website_items_stock_by_route(routes=None):
+    routes = frappe.parse_json(routes) if routes else []
+    normalized_routes = _normalize_routes(routes)
+
+    website_warehouse, show_only_available = get_website_stock_settings()
+
+    if not normalized_routes:
+        return {
+            "website_warehouse": website_warehouse,
+            "show_only_available": cint(show_only_available),
+            "items": {},
+        }
+
+    website_items = frappe.get_all(
+        "Website Item",
+        filters={
+            "route": ["in", normalized_routes],
+            "published": 1,
+        },
+        fields=["route", "item_code"],
+        limit_page_length=0,
     )
 
-    return flt(rate[0][0]) if rate else 0
+    items_by_route = {}
+    for row in website_items:
+        actual_qty = get_item_stock_qty(row.item_code, website_warehouse)
+        items_by_route[f"/{row.route.strip('/')}"] = {
+            "item_code": row.item_code,
+            "actual_qty": actual_qty,
+            "in_stock": actual_qty > 0,
+        }
+
+    return {
+        "website_warehouse": website_warehouse,
+        "show_only_available": cint(show_only_available),
+        "items": items_by_route,
+    }
 
 
 @frappe.whitelist(allow_guest=True)

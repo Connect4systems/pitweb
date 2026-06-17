@@ -145,6 +145,12 @@ app_license = "mit"
 # 	}
 # }
 
+doc_events = {
+	"Delivery Trip": {
+		"before_validate": "pitweb.delivery_trip.ensure_delivery_stop_customer_address",
+	}
+}
+
 # Scheduled Tasks
 # ---------------
 

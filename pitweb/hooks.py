@@ -146,6 +146,12 @@ app_license = "mit"
 # }
 
 doc_events = {
+	"Item": {
+		"on_update": "pitweb.website_item_sync.sync_website_item_image_from_item",
+	},
+	"Website Item": {
+		"validate": "pitweb.website_item_sync.apply_item_image_to_website_item",
+	},
 	"Delivery Trip": {
 		"before_validate": "pitweb.delivery_trip.ensure_delivery_stop_customer_address",
 	}

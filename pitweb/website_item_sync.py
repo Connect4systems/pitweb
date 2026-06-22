@@ -38,3 +38,15 @@ def sync_website_item_image_from_item(doc, method=None):
             "item_image": item_image,
         },
     )
+
+
+def sync_all_website_item_images():
+    """Backfill Website Item.website_image from linked Item image fields."""
+    frappe.db.sql(
+        """
+        UPDATE `tabWebsite Item` wi
+        INNER JOIN `tabItem` i ON i.name = wi.item_code
+        SET wi.website_image = COALESCE(NULLIF(i.website_image, ''), NULLIF(i.image, ''), '')
+        WHERE IFNULL(wi.website_image, '') != COALESCE(NULLIF(i.website_image, ''), NULLIF(i.image, ''), '')
+        """
+    )

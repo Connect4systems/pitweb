@@ -5,3 +5,4 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 pitweb.patches.v15_0.add_delivery_stop_compat_fields
+pitweb.patches.v15_0.sync_existing_website_item_images

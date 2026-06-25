@@ -30,7 +30,10 @@ app_license = "mit"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/pitweb/css/pitweb.css"
-# web_include_js = "/assets/pitweb/js/pitweb.js"
+web_include_js = [
+	"/assets/pitweb/js/pitweb_web.js",
+	"/assets/pitweb/js/related_products.js",
+]
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "pitweb/public/scss/website"

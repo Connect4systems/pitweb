@@ -30,7 +30,15 @@ def _normalize_rfq_redirect(payload):
 def request_for_quotation(*args, **kwargs):
     from webshop.webshop.shopping_cart import cart as webshop_cart
 
-    response = webshop_cart.request_for_quotation(*args, **kwargs)
+    passthrough_kwargs = dict(kwargs or {})
+    passthrough_kwargs.pop("cmd", None)
+
+    try:
+        response = webshop_cart.request_for_quotation(*args, **passthrough_kwargs)
+    except TypeError:
+        # Upstream signature differs between versions; fallback to no-arg call.
+        response = webshop_cart.request_for_quotation()
+
     return _normalize_rfq_redirect(response)
 
 

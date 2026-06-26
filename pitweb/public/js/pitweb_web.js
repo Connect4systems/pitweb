@@ -1,5 +1,21 @@
 (function () {
   var RFQ_PENDING_KEY = "pitweb_rfq_pending";
+  var RFQ_SUCCESS_FLAG = "rfq_submitted";
+  var RFQ_RELOAD_GUARD = "pitweb_rfq_quotes_reloaded";
+
+  function markRfqSubmitted() {
+    try {
+      window.sessionStorage.setItem(RFQ_PENDING_KEY, String(Date.now()));
+    } catch (e) {
+      // Ignore storage failures.
+    }
+
+    try {
+      window.localStorage.setItem(RFQ_SUCCESS_FLAG, "1");
+    } catch (e) {
+      // Ignore storage failures.
+    }
+  }
 
   function getSidCookieValue() {
     var match = document.cookie.match(/(?:^|;\s*)sid=([^;]+)/);
@@ -63,11 +79,7 @@
     }
 
     if (isLoggedInUser()) {
-      try {
-        window.sessionStorage.setItem(RFQ_PENDING_KEY, String(Date.now()));
-      } catch (e) {
-        // Ignore storage failures and continue normal flow.
-      }
+      markRfqSubmitted();
       return;
     }
 
@@ -152,21 +164,46 @@
 
   function handleRfqSubmittedNotice() {
     var path = window.location.pathname || "";
-    if (path !== "/cart") {
+    if (path !== "/cart" && path !== "/quotations") {
       return;
     }
 
     var params = new URLSearchParams(window.location.search || "");
-    if (params.get("rfq_submitted") !== "1") {
+    var submitted = params.get("rfq_submitted") === "1";
+    if (!submitted) {
+      try {
+        submitted = window.localStorage.getItem(RFQ_SUCCESS_FLAG) === "1";
+      } catch (e) {
+        submitted = false;
+      }
+    }
+
+    if (!submitted) {
       return;
     }
 
     if (window.frappe && typeof frappe.show_alert === "function") {
-      var message = "Request for Quotation submitted successfully";
+      var message = "Your order is under review, thanks.";
       if (typeof window.__ === "function") {
         message = window.__(message);
       }
       frappe.show_alert({ message: message, indicator: "green" });
+    }
+
+    if (path === "/cart") {
+      window.location.replace("/quotations?rfq_submitted=1");
+      return;
+    }
+
+    try {
+      if (window.localStorage.getItem(RFQ_RELOAD_GUARD) !== "1") {
+        window.localStorage.setItem(RFQ_RELOAD_GUARD, "1");
+        window.location.reload();
+        return;
+      }
+      window.localStorage.removeItem(RFQ_RELOAD_GUARD);
+    } catch (e) {
+      // Ignore storage failures.
     }
 
     params.delete("rfq_submitted");
@@ -176,6 +213,12 @@
 
     try {
       window.sessionStorage.removeItem(RFQ_PENDING_KEY);
+    } catch (e) {
+      // Ignore storage failures.
+    }
+
+    try {
+      window.localStorage.removeItem(RFQ_SUCCESS_FLAG);
     } catch (e) {
       // Ignore storage failures.
     }

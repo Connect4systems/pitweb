@@ -189,9 +189,9 @@ doc_events = {
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "pitweb.event.get_events"
-# }
+override_whitelisted_methods = {
+	"webshop.webshop.shopping_cart.cart.request_for_quotation": "pitweb.api.request_for_quotation",
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,

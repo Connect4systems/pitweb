@@ -2,6 +2,38 @@ import frappe
 from frappe.utils import flt, cint
 
 
+def _normalize_rfq_redirect(payload):
+    if isinstance(payload, str):
+        if payload.startswith("/quotations/"):
+            return "/"
+        return payload
+
+    if not isinstance(payload, dict):
+        return payload
+
+    normalized = dict(payload)
+    redirect_keys = ["redirect_to", "redirect_url", "route", "url"]
+
+    for key in redirect_keys:
+        value = normalized.get(key)
+        if isinstance(value, str) and value.startswith("/quotations/"):
+            normalized[key] = "/"
+
+    # Ensure frontend always has a safe destination if upstream only returned a quotation route.
+    if not any(normalized.get(k) for k in redirect_keys):
+        normalized["redirect_to"] = "/"
+
+    return normalized
+
+
+@frappe.whitelist(allow_guest=True)
+def request_for_quotation(*args, **kwargs):
+    from webshop.webshop.shopping_cart import cart as webshop_cart
+
+    response = webshop_cart.request_for_quotation(*args, **kwargs)
+    return _normalize_rfq_redirect(response)
+
+
 def get_website_stock_settings():
     website_warehouse = frappe.db.get_single_value(
         "Website Settings",

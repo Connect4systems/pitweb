@@ -120,6 +120,14 @@
       return;
     }
 
+    // Quotation detail route is not website-accessible for portal users.
+    // Always send logged-in users back to cart to avoid login/permission loop.
+    window.setTimeout(function () {
+      if ((window.location.pathname || "").startsWith("/quotations/")) {
+        window.location.replace("/cart?rfq_submitted=1");
+      }
+    }, 1200);
+
     // RFQ may be created successfully, but website user cannot open quotation detail route.
     if (hasPermissionDeniedContent()) {
       window.location.replace("/cart?rfq_submitted=1");

@@ -8,6 +8,15 @@
     );
   }
 
+  function isLoggedInUser() {
+    return !!(
+      window.frappe &&
+      frappe.session &&
+      frappe.session.user &&
+      frappe.session.user !== "Guest"
+    );
+  }
+
   function getLoginUrl() {
     var redirectTo = window.location.pathname + window.location.search + window.location.hash;
     return "/login?redirect-to=" + encodeURIComponent(redirectTo || "/cart");
@@ -41,5 +50,73 @@
     window.location.href = getLoginUrl();
   }
 
+  function hasPermissionDeniedContent() {
+    var text = (document.body && document.body.innerText ? document.body.innerText : "").toLowerCase();
+    if (!text) {
+      return false;
+    }
+
+    return (
+      text.indexOf("لا يسمح") !== -1 ||
+      text.indexOf("not permitted") !== -1 ||
+      text.indexOf("insufficient permission") !== -1
+    );
+  }
+
+  function handleLoggedInQuotationFallback() {
+    var path = window.location.pathname || "";
+    if (!path.startsWith("/quotations/") || !isLoggedInUser()) {
+      return;
+    }
+
+    // RFQ may be created successfully, but website user cannot open quotation detail route.
+    if (hasPermissionDeniedContent()) {
+      window.location.replace("/cart?rfq_submitted=1");
+      return;
+    }
+
+    // Some themes render permission messages after initial load.
+    var checks = 0;
+    var timer = window.setInterval(function () {
+      checks += 1;
+      if (hasPermissionDeniedContent()) {
+        window.clearInterval(timer);
+        window.location.replace("/cart?rfq_submitted=1");
+        return;
+      }
+
+      if (checks >= 10) {
+        window.clearInterval(timer);
+      }
+    }, 400);
+  }
+
+  function handleRfqSubmittedNotice() {
+    var path = window.location.pathname || "";
+    if (path !== "/cart") {
+      return;
+    }
+
+    var params = new URLSearchParams(window.location.search || "");
+    if (params.get("rfq_submitted") !== "1") {
+      return;
+    }
+
+    if (window.frappe && typeof frappe.show_alert === "function") {
+      var message = "Request for Quotation submitted successfully";
+      if (typeof window.__ === "function") {
+        message = window.__(message);
+      }
+      frappe.show_alert({ message: message, indicator: "green" });
+    }
+
+    params.delete("rfq_submitted");
+    var nextQuery = params.toString();
+    var nextUrl = path + (nextQuery ? "?" + nextQuery : "") + (window.location.hash || "");
+    window.history.replaceState({}, "", nextUrl);
+  }
+
   document.addEventListener("click", handleGuestRfqClick, true);
+  handleLoggedInQuotationFallback();
+  handleRfqSubmittedNotice();
 })();

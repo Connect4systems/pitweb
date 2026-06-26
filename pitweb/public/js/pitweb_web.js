@@ -1,5 +1,17 @@
 (function () {
+  var RFQ_PENDING_KEY = "pitweb_rfq_pending";
+
+  function getSidCookieValue() {
+    var match = document.cookie.match(/(?:^|;\s*)sid=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
   function isGuestUser() {
+    var sid = getSidCookieValue();
+    if (sid) {
+      return sid === "Guest";
+    }
+
     return !!(
       window.frappe &&
       frappe.session &&
@@ -9,6 +21,11 @@
   }
 
   function isLoggedInUser() {
+    var sid = getSidCookieValue();
+    if (sid) {
+      return sid !== "Guest";
+    }
+
     return !!(
       window.frappe &&
       frappe.session &&
@@ -41,7 +58,20 @@
 
   function handleGuestRfqClick(event) {
     var trigger = event.target.closest("button, input[type='button'], input[type='submit'], a");
-    if (!trigger || !isRfqTrigger(trigger) || !isGuestUser()) {
+    if (!trigger || !isRfqTrigger(trigger)) {
+      return;
+    }
+
+    if (isLoggedInUser()) {
+      try {
+        window.sessionStorage.setItem(RFQ_PENDING_KEY, String(Date.now()));
+      } catch (e) {
+        // Ignore storage failures and continue normal flow.
+      }
+      return;
+    }
+
+    if (!isGuestUser()) {
       return;
     }
 
@@ -65,7 +95,28 @@
 
   function handleLoggedInQuotationFallback() {
     var path = window.location.pathname || "";
-    if (!path.startsWith("/quotations/") || !isLoggedInUser()) {
+    if (!path.startsWith("/quotations/")) {
+      return;
+    }
+
+    var rfqPending = false;
+    try {
+      rfqPending = !!window.sessionStorage.getItem(RFQ_PENDING_KEY);
+    } catch (e) {
+      rfqPending = false;
+    }
+
+    if (rfqPending && isLoggedInUser()) {
+      try {
+        window.sessionStorage.removeItem(RFQ_PENDING_KEY);
+      } catch (e) {
+        // Ignore storage failures.
+      }
+      window.location.replace("/cart?rfq_submitted=1");
+      return;
+    }
+
+    if (!isLoggedInUser()) {
       return;
     }
 
@@ -114,6 +165,12 @@
     var nextQuery = params.toString();
     var nextUrl = path + (nextQuery ? "?" + nextQuery : "") + (window.location.hash || "");
     window.history.replaceState({}, "", nextUrl);
+
+    try {
+      window.sessionStorage.removeItem(RFQ_PENDING_KEY);
+    } catch (e) {
+      // Ignore storage failures.
+    }
   }
 
   document.addEventListener("click", handleGuestRfqClick, true);

@@ -6,6 +6,11 @@ def _normalize_rfq_redirect(payload):
     if isinstance(payload, str):
         if payload.startswith("/quotations/"):
             return "/"
+        if payload.upper().startswith("SAL-QTN-"):
+            return {
+                "quotation": payload,
+                "redirect_to": "/",
+            }
         return payload
 
     if not isinstance(payload, dict):

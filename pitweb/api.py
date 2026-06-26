@@ -5,30 +5,24 @@ from frappe.utils import flt, cint
 def _normalize_rfq_redirect(payload):
     if isinstance(payload, str):
         if payload.startswith("/quotations/"):
-            return "/"
+            return ""
         if payload.upper().startswith("SAL-QTN-"):
-            return {
-                "quotation": payload,
-                "redirect_to": "/",
-            }
+            # Webshop JS appends response to "/quotations/".
+            # Return empty string to land on quotations list route.
+            return ""
         return payload
 
     if not isinstance(payload, dict):
         return payload
 
-    normalized = dict(payload)
-    redirect_keys = ["redirect_to", "redirect_url", "route", "url"]
+    for key in ("quotation", "name", "redirect_to", "redirect_url", "route", "url"):
+        value = payload.get(key)
+        if isinstance(value, str) and (
+            value.upper().startswith("SAL-QTN-") or value.startswith("/quotations/")
+        ):
+            return ""
 
-    for key in redirect_keys:
-        value = normalized.get(key)
-        if isinstance(value, str) and value.startswith("/quotations/"):
-            normalized[key] = "/"
-
-    # Ensure frontend always has a safe destination if upstream only returned a quotation route.
-    if not any(normalized.get(k) for k in redirect_keys):
-        normalized["redirect_to"] = "/"
-
-    return normalized
+    return ""
 
 
 @frappe.whitelist(allow_guest=True)

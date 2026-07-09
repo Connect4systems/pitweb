@@ -42,6 +42,13 @@ def request_for_quotation(*args, **kwargs):
 
 
 def get_website_stock_settings():
+    all_companies_warehouses = cint(
+        frappe.db.get_single_value(
+            "Website Settings",
+            "custom_all_companies_warehouses"
+        )
+    )
+
     website_warehouse = frappe.db.get_single_value(
         "Website Settings",
         "custom_website_stock_warehouse"
@@ -54,10 +61,22 @@ def get_website_stock_settings():
         )
     )
 
-    return website_warehouse, show_only_available
+    return website_warehouse, show_only_available, all_companies_warehouses
 
 
-def get_item_stock_qty(item_code, warehouse=None):
+def get_item_stock_qty(item_code, warehouse=None, all_companies_warehouses=False):
+    if all_companies_warehouses:
+        qty = frappe.db.sql(
+            """
+            SELECT COALESCE(SUM(actual_qty), 0)
+            FROM `tabBin`
+            WHERE item_code = %s
+            """,
+            item_code
+        )
+
+        return flt(qty[0][0]) if qty else 0
+
     if warehouse:
         return flt(
             frappe.db.get_value(
@@ -70,16 +89,7 @@ def get_item_stock_qty(item_code, warehouse=None):
             )
         )
 
-    qty = frappe.db.sql(
-        """
-        SELECT COALESCE(SUM(actual_qty), 0)
-        FROM `tabBin`
-        WHERE item_code = %s
-        """,
-        item_code
-    )
-
-    return flt(qty[0][0]) if qty else 0
+    return 0
 
 
 def get_item_price(item_code):
@@ -124,11 +134,14 @@ def get_website_items_stock_by_route(routes=None):
     routes = frappe.parse_json(routes) if routes else []
     normalized_routes = _normalize_routes(routes)
 
-    website_warehouse, show_only_available = get_website_stock_settings()
+    website_warehouse, show_only_available, all_companies_warehouses = (
+        get_website_stock_settings()
+    )
 
     if not normalized_routes:
         return {
             "website_warehouse": website_warehouse,
+            "all_companies_warehouses": all_companies_warehouses,
             "show_only_available": cint(show_only_available),
             "items": {},
         }
@@ -145,7 +158,11 @@ def get_website_items_stock_by_route(routes=None):
 
     items_by_route = {}
     for row in website_items:
-        actual_qty = get_item_stock_qty(row.item_code, website_warehouse)
+        actual_qty = get_item_stock_qty(
+            row.item_code,
+            website_warehouse,
+            all_companies_warehouses,
+        )
         items_by_route[f"/{row.route.strip('/')}"] = {
             "item_code": row.item_code,
             "actual_qty": actual_qty,
@@ -154,6 +171,7 @@ def get_website_items_stock_by_route(routes=None):
 
     return {
         "website_warehouse": website_warehouse,
+        "all_companies_warehouses": all_companies_warehouses,
         "show_only_available": cint(show_only_available),
         "items": items_by_route,
     }
@@ -172,9 +190,15 @@ def get_product_page_info(item_code=None, route=None):
     if not item_code:
         return {}
 
-    website_warehouse, show_only_available = get_website_stock_settings()
+    website_warehouse, show_only_available, all_companies_warehouses = (
+        get_website_stock_settings()
+    )
 
-    actual_qty = get_item_stock_qty(item_code, website_warehouse)
+    actual_qty = get_item_stock_qty(
+        item_code,
+        website_warehouse,
+        all_companies_warehouses,
+    )
     price_list_rate = get_item_price(item_code)
 
     return {
@@ -207,7 +231,9 @@ def get_related_products(item_code=None, route=None, limit=20):
     if not item_group:
         return []
 
-    website_warehouse, show_only_available = get_website_stock_settings()
+    website_warehouse, show_only_available, all_companies_warehouses = (
+        get_website_stock_settings()
+    )
 
     warehouse_condition = ""
     having_condition = ""
@@ -218,9 +244,14 @@ def get_related_products(item_code=None, route=None, limit=20):
         "limit": limit,
     }
 
-    if website_warehouse:
+    if all_companies_warehouses:
+        pass
+    elif website_warehouse:
         warehouse_condition = "AND bin.warehouse = %(website_warehouse)s"
         values["website_warehouse"] = website_warehouse
+    else:
+        # No warehouse configured in single-warehouse mode means zero stock.
+        warehouse_condition = "AND 1 = 0"
 
     if show_only_available:
         having_condition = "HAVING actual_qty > 0"

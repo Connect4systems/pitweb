@@ -7,4 +7,5 @@
 pitweb.patches.v15_0.add_delivery_stop_compat_fields
 pitweb.patches.v15_0.sync_existing_website_item_images
 pitweb.patches.v15_0.add_all_companies_warehouses_setting
+pitweb.patches.v15_0.restore_website_company_stock_setting
 pitweb.patches.v15_0.make_item_images_public

@@ -3,6 +3,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
 def execute():
+    """Restore the website stock setting if it was moved or deleted."""
     create_custom_fields(
         {
             "Website Settings": [

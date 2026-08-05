@@ -1,7 +1,36 @@
+import os
+
 import frappe
+from frappe.core.doctype.file.utils import get_content_hash
 
 
 ITEM_IMAGE_FIELDS = ("website_image", "image")
+
+
+def _recover_missing_private_file(file_doc):
+    """Recover a file already present publicly, or drop its broken URL."""
+    file_name = os.path.basename(file_doc.file_name or file_doc.file_url)
+    public_url = f"/files/{file_name}"
+    public_path = frappe.get_site_path("public", "files", file_name)
+
+    if os.path.exists(public_path) and file_doc.content_hash:
+        with open(public_path, "rb") as public_file:
+            public_hash = get_content_hash(public_file.read())
+
+        if public_hash == file_doc.content_hash:
+            frappe.db.set_value(
+                "File",
+                file_doc.name,
+                {"file_url": public_url, "is_private": 0},
+                update_modified=False,
+            )
+            return public_url
+
+    frappe.logger("pitweb").warning(
+        "Clearing broken Item image reference %s because its private file is missing",
+        file_doc.file_url,
+    )
+    return ""
 
 
 def _item_has_website_image_column():
@@ -34,6 +63,10 @@ def _make_file_public(file_url):
     try:
         file_doc.save(ignore_permissions=True)
         return file_doc.file_url
+    except FileNotFoundError:
+        frappe.clear_last_message()
+        file_doc.reload()
+        return _recover_missing_private_file(file_doc)
     except FileExistsError:
         # A different public file can already use the same filename. Preserve
         # both files: Frappe will reuse identical content or generate a unique

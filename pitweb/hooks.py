@@ -150,10 +150,11 @@ web_include_js = [
 
 doc_events = {
 	"Item": {
+		"before_validate": "pitweb.website_item_sync.ensure_item_images_are_public",
 		"on_update": "pitweb.website_item_sync.sync_website_item_image_from_item",
 	},
 	"Website Item": {
-		"validate": "pitweb.website_item_sync.apply_item_image_to_website_item",
+		"before_validate": "pitweb.website_item_sync.apply_item_image_to_website_item",
 	},
 	"Delivery Trip": {
 		"before_validate": "pitweb.delivery_trip.ensure_delivery_stop_customer_address",

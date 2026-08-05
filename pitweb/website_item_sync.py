@@ -46,8 +46,9 @@ def ensure_item_images_are_public(doc, method=None):
         if image_url:
             public_url = _make_file_public(image_url)
             if public_url != image_url:
-                if hasattr(doc, "set"):
-                    doc.set(fieldname, public_url)
+                setter = getattr(doc, "set", None)
+                if callable(setter):
+                    setter(fieldname, public_url)
                 else:
                     doc[fieldname] = public_url
                 changed[fieldname] = public_url

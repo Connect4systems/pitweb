@@ -31,8 +31,28 @@ def _make_file_public(file_url):
     file_doc.is_private = 0
     # File.save() invokes Frappe's privacy-change handler. It moves the file on
     # disk and updates references from /private/files/ to /files/ atomically.
-    file_doc.save(ignore_permissions=True)
-    return file_doc.file_url
+    try:
+        file_doc.save(ignore_permissions=True)
+        return file_doc.file_url
+    except FileExistsError:
+        # A different public file can already use the same filename. Preserve
+        # both files: Frappe will reuse identical content or generate a unique
+        # public filename for this image.
+        frappe.clear_last_message()
+        file_doc.reload()
+        public_file = frappe.get_doc(
+            {
+                "doctype": "File",
+                "file_name": file_doc.file_name,
+                "content": file_doc.get_content(),
+                "is_private": 0,
+                "attached_to_doctype": file_doc.attached_to_doctype,
+                "attached_to_name": file_doc.attached_to_name,
+                "attached_to_field": file_doc.attached_to_field,
+            }
+        )
+        public_file.insert(ignore_permissions=True)
+        return public_file.file_url
 
 
 def ensure_item_images_are_public(doc, method=None):

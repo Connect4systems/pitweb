@@ -269,5 +269,6 @@ web_include_js = [
 ]
 
 web_include_css = [
+	"/assets/pitweb/css/pitweb_web.css?v=20261101_1",
 	"/assets/pitweb/css/related_products.css"
 ]

@@ -1,0 +1,4 @@
+/* Hide the duplicate floating WhatsApp widget; the left contact button remains. */
+.wa-float {
+    display: none !important;
+}

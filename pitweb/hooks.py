@@ -87,6 +87,8 @@ web_include_js = [
 
 # before_install = "pitweb.install.before_install"
 # after_install = "pitweb.install.after_install"
+after_install = "pitweb.stock_settings.ensure_stock_settings"
+after_migrate = "pitweb.stock_settings.ensure_stock_settings"
 
 # Uninstallation
 # ------------

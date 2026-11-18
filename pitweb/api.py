@@ -42,23 +42,23 @@ def request_for_quotation(*args, **kwargs):
 
 
 def get_website_stock_settings():
+    settings_meta = frappe.get_meta("Website Settings")
+
+    def get_setting(fieldname):
+        # Older sites may not have migrated the optional stock fields yet.
+        # get_single_value emits a user-facing message for a missing field.
+        if settings_meta.has_field(fieldname):
+            return frappe.db.get_single_value("Website Settings", fieldname)
+        return None
+
     all_companies_warehouses = cint(
-        frappe.db.get_single_value(
-            "Website Settings",
-            "custom_all_companies_warehouses"
-        )
+        get_setting("custom_all_companies_warehouses")
     )
 
-    website_warehouse = frappe.db.get_single_value(
-        "Website Settings",
-        "custom_website_stock_warehouse"
-    )
+    website_warehouse = get_setting("custom_website_stock_warehouse")
 
     show_only_available = cint(
-        frappe.db.get_single_value(
-            "Website Settings",
-            "custom_show_only_available_stock_products"
-        )
+        get_setting("custom_show_only_available_stock_products")
     )
 
     return website_warehouse, show_only_available, all_companies_warehouses
